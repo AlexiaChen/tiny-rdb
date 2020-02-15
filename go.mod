@@ -1,3 +1,3 @@
-module github.com/tiny-rdb
+module tiny-rdb
 
 go 1.13
