@@ -31,3 +31,11 @@ func ReadInput(buf *InputBuffer) {
 	buf.Buffer = strings.TrimSpace(buf.Buffer)
 	buf.BufLen = len(buf.Buffer)
 }
+
+func IsRawCommand(cmd *string) bool {
+	if (*cmd)[0] == '#' {
+		return true
+	} else {
+		return false
+	}
+}

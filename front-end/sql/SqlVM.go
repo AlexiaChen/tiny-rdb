@@ -38,10 +38,11 @@ type Statement struct {
 
 // RunRawCommand Run raw command
 func RunRawCommand(inputBuffer *cli.InputBuffer) RawCommandResult {
-	if inputBuffer.Buffer == "exit" || inputBuffer.Buffer == "quit" {
+	if inputBuffer.Buffer == "#exit" || inputBuffer.Buffer == "#quit" {
 		os.Exit(util.ExitSuccess)
-	} else {
-		return RawCommandUnrecognizedCMD
+	}
+	if inputBuffer.Buffer == "#other" {
+		return RawCommandSuccess
 	}
 	return RawCommandUnrecognizedCMD
 }

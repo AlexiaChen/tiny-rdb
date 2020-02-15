@@ -11,8 +11,16 @@ func TestRunRawCommand(t *testing.T) {
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
 
 	if RunRawCommand(inputBuffer) != RawCommandUnrecognizedCMD {
-		t.Errorf("Command is unrecognized command")
+		t.Errorf("Command is not unrecognized command")
 	}
+
+	inputBuffer.Buffer = "#other"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	if RunRawCommand(inputBuffer) != RawCommandSuccess {
+		t.Errorf("Command is not success command")
+	}
+
 }
 
 func TestPrepareStatement(t *testing.T) {

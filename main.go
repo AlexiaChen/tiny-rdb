@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"tiny-rdb/front-end/cli"
-	"tiny-rdb/util"
+	"tiny-rdb/front-end/sql"
 )
 
 func main() {
@@ -15,13 +13,30 @@ func main() {
 		cli.PrintPrompt()
 		cli.ReadInput(inputBuffer)
 
-		if inputBuffer.Buffer == "exit" || inputBuffer.Buffer == "quit" {
-			os.Exit(util.ExitSuccess)
-		} else {
+		if inputBuffer.BufLen == 0 {
+			continue
+		}
 
-			if inputBuffer.BufLen > 0 {
-				fmt.Printf("Unrecognized command：%v\n", inputBuffer.Buffer)
+		if cli.IsRawCommand(&(inputBuffer.Buffer)) {
+			switch sql.RunRawCommand(inputBuffer) {
+			case sql.RawCommandSuccess:
+				continue
+			case sql.RawCommandUnrecognizedCMD:
+				fmt.Printf("Unrecognized raw command: %v\n", inputBuffer.Buffer)
+				continue
 			}
 		}
+
+		var statement sql.Statement
+		switch sql.PrepareStatement(inputBuffer, &statement) {
+		case sql.PrepareSuccess:
+			break
+		case sql.PrepareUnrecognizedStatement:
+			fmt.Printf("Unrecognized statement: %v\n", inputBuffer.Buffer)
+			continue
+		}
+
+		sql.RunStatement(&statement)
+		fmt.Println("Executed statement.")
 	}
 }
