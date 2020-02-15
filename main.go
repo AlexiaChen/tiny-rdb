@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"tiny-rdb/front-end/cli"
+	"tiny-rdb/util"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 		cli.ReadInput(inputBuffer)
 
 		if inputBuffer.Buffer == "exit" || inputBuffer.Buffer == "quit" {
-			os.Exit(cli.ExitSuccess)
+			os.Exit(util.ExitSuccess)
 		} else {
 
 			if inputBuffer.BufLen > 0 {

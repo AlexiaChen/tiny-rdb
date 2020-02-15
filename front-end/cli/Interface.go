@@ -23,12 +23,6 @@ func PrintPrompt() {
 	fmt.Printf("tiny-rdb> ")
 }
 
-// const var
-const (
-	ExitSuccess = 0
-	ExitFailure = -1
-)
-
 // ReadInput Read input line from stdin
 func ReadInput(buf *InputBuffer) {
 	reader := bufio.NewReader(os.Stdin)
