@@ -11,3 +11,5 @@ A tiny relation database(tiny-rdb) with persistent B+ tree, but it does not supp
 - http://pages.cs.wisc.edu/~dbbook/openAccess/Minibase/minibase.html
 - 《Database System Implementation》
 - 《Database System Concepts》
+- Some of Documents of SQLite
+- http://huili.github.io/ 
