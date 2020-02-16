@@ -20,6 +20,8 @@ const (
 	// Satement Type
 	InsertStatement = iota
 	SelectStatement = iota
+	DeleteStatement = iota
+	CreateStatement = iota
 )
 
 // StatementType type of statement
@@ -59,6 +61,16 @@ func PrepareStatement(inputBuffer *cli.InputBuffer, statement *Statement) Prepar
 		return PrepareSuccess
 	}
 
+	if inputBuffer.Buffer == "delete" {
+		statement.Type = DeleteStatement
+		return PrepareSuccess
+	}
+
+	if inputBuffer.Buffer == "create" {
+		statement.Type = CreateStatement
+		return PrepareSuccess
+	}
+
 	return PrepareUnrecognizedStatement
 }
 
@@ -69,6 +81,10 @@ func RunStatement(statement *Statement) {
 		// TODO: Insert
 	case SelectStatement:
 		// TODO: Select
+	case DeleteStatement:
+		// TODO: Delete
+	case CreateStatement:
+		// TODO: Create
 	default:
 		fmt.Println("Unkown Statement.")
 	}
