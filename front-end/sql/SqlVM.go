@@ -15,6 +15,7 @@ const (
 
 	// Prepare Statement Reuslt
 	PrepareSuccess               = iota
+	PrepareSyntaxError           = iota
 	PrepareUnrecognizedStatement = iota
 
 	// Satement Type
@@ -22,6 +23,10 @@ const (
 	SelectStatement = iota
 	DeleteStatement = iota
 	CreateStatement = iota
+
+	// Execute Result
+	ExecuteSuccess   = iota
+	ExecuteTableFull = iota
 )
 
 // StatementType type of statement
@@ -35,7 +40,9 @@ type RawCommandResult = int
 
 // Statement represent a statment
 type Statement struct {
-	Type StatementType
+	Type        StatementType
+	RowToInsert Row
+	RowToDelete Row
 }
 
 // RunRawCommand Run raw command
