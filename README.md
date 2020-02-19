@@ -1,4 +1,4 @@
-# Tiny Relation DataBase
+# Tiny Relational DataBase
 
 A tiny relational database(tiny-rdb) with persistent B+ tree, but it does not support transaction and SQL. the query language just simple query command.
 
