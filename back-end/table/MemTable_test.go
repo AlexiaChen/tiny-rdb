@@ -28,3 +28,28 @@ func TestTable(t *testing.T) {
 	}
 
 }
+
+func TestSerialize(t *testing.T) {
+
+	var row Row
+	row.PrimaryID = 12
+	copy(row.UserName[:], "Jhone")
+	copy(row.Email[:], "jhone@google.com")
+
+	if len(string(row.UserName[:5])) != 5 {
+		t.Errorf("User name: %v size is: %v", string(row.UserName[:5]), len(string(row.UserName[:])))
+	}
+
+	bytes := make([]byte, 500)
+	copied := SerializeRow(&row, &bytes)
+
+	if copied != RowSize {
+		t.Errorf("seriliaze copied size: %v", copied)
+	}
+
+	var newRow Row
+	copied = DeserializeRow(&bytes, &newRow)
+	if copied != RowSize {
+		t.Errorf("deserialize copied size: %v", copied)
+	}
+}

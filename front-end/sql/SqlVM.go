@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 	"os"
+	"tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
 	"tiny-rdb/util"
 )
@@ -41,8 +42,8 @@ type RawCommandResult = int
 // Statement represent a statment
 type Statement struct {
 	Type        StatementType
-	RowToInsert Row
-	RowToDelete Row
+	RowToInsert table.Row
+	RowToDelete table.Row
 }
 
 // RunRawCommand Run raw command

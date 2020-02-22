@@ -1,5 +1,10 @@
 package table
 
+import (
+	"fmt"
+	"unsafe"
+)
+
 // Row Table Row
 type Row struct {
 	PrimaryID uint32
@@ -51,7 +56,46 @@ func NewTable() *Table {
 	return table
 }
 
+// SerializeRow Serialize Row
+func SerializeRow(src *Row, dst *[]byte) int {
+	var copied int = 0
+	unsafeID := unsafe.Pointer(&src.PrimaryID)
+	ID := (*[PrimaryIDSize]byte)(unsafeID)
+	copied = copied + copy((*dst)[IDOffSet:IDOffSet+PrimaryIDSize], (*ID)[0:])
+
+	unsafeUserName := unsafe.Pointer(&src.UserName)
+	UserName := (*[UserNameSize]byte)(unsafeUserName)
+	copied = copied + copy((*dst)[UserNameOffSet:UserNameOffSet+UserNameSize], (*UserName)[0:])
+
+	unsafeEmail := unsafe.Pointer(&src.Email)
+	Email := (*[EmailSize]byte)(unsafeEmail)
+	copied = copied + copy((*dst)[EmailOffSet:EmailOffSet+EmailSize], (*Email)[0:])
+	return copied
+}
+
+// DeserializeRow Deserialize row
+func DeserializeRow(src *[]byte, dst *Row) int {
+	var copied int = 0
+	unsafeID := unsafe.Pointer(&dst.PrimaryID)
+	ID := (*[PrimaryIDSize]byte)(unsafeID)
+	copied = copied + copy((*ID)[0:], (*src)[IDOffSet:IDOffSet+PrimaryIDSize])
+
+	unsafeUserName := unsafe.Pointer(&dst.UserName)
+	UserName := (*[UserNameSize]byte)(unsafeUserName)
+	copied = copied + copy((*UserName)[0:], (*src)[UserNameOffSet:UserNameOffSet+UserNameSize])
+
+	unsafeEmail := unsafe.Pointer(&dst.Email)
+	Email := (*[EmailSize]byte)(unsafeEmail)
+	copied = copied + copy((*Email)[0:], (*src)[EmailOffSet:EmailOffSet+EmailSize])
+	return copied
+}
+
 // RowSlot returned address of rownum in specific table
 func RowSlot(table *Table, rowNum uint32) *byte {
 	return nil
+}
+
+// PrintRow print row
+func PrintRow(row *Row) {
+	fmt.Printf("(%d, %s, %s)\n", row.PrimaryID, row.UserName, row.Email)
 }
