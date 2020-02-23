@@ -101,7 +101,7 @@ func RowSlot(table *Table, rowNum uint32) []byte {
 
 	var rowOffset uint32 = rowNum % RowsPerPage
 	var byteOffset uint32 = rowOffset * RowSize
-	var offsetSlice []byte = page.Mem[byteOffset:]
+	var offsetSlice []byte = page.Mem[byteOffset : byteOffset+RowSize]
 
 	return offsetSlice
 

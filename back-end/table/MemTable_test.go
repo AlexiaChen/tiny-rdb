@@ -58,8 +58,8 @@ func TestRowSlot(t *testing.T) {
 	var table Table
 	bytesSlice := RowSlot(&table, 12)
 
-	if len(bytesSlice) == 0 {
-		t.Errorf("bytes must be not null.")
+	if len(bytesSlice) != RowSize {
+		t.Errorf("bytesSlice  len must be not empty.")
 	}
 
 	if table.Pages[0] == nil {

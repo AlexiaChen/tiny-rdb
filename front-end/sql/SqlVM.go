@@ -29,6 +29,7 @@ const (
 	// Execute Result
 	ExecuteSuccess   = iota
 	ExecuteTableFull = iota
+	ExecuteFail      = iota
 )
 
 // StatementType type of statement
@@ -101,19 +102,21 @@ func PrepareStatement(inputBuffer *cli.InputBuffer, statement *Statement) Prepar
 }
 
 // RunStatement Run statement
-func RunStatement(statement *Statement) {
+func RunStatement(table *tablePackage.Table, statement *Statement) ExecuteResult {
 	switch statement.Type {
 	case InsertStatement:
-		// TODO: Insert
+		return RunInsert(table, statement)
 	case SelectStatement:
-		// TODO: Select
+		return RunSelect(table, statement)
 	case DeleteStatement:
 		// TODO: Delete
 	case CreateStatement:
 		// TODO: Create
 	default:
 		fmt.Println("Unkown Statement.")
+		return ExecuteFail
 	}
+	return ExecuteFail
 }
 
 // RunInsert run insert statment
@@ -122,14 +125,19 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 		return ExecuteTableFull
 	}
 
-	var rowToInsert *tablePackage.Row = &statement.RowToInsert
-	bytesSlice := tablePackage.RowSlot(table, table.NumRows)
-	tablePackage.SerializeRow(rowToInsert, &bytesSlice)
+	rowSlotSlice := tablePackage.RowSlot(table, table.NumRows)
+	tablePackage.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
 	table.NumRows = table.NumRows + 1
 	return ExecuteSuccess
 }
 
 // RunSelect run select statment
 func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
+	var row tablePackage.Row
+	for i := uint32(0); i < table.NumRows; i++ {
+		rowSlotSlice := tablePackage.RowSlot(table, i)
+		tablePackage.DeserializeRow(&rowSlotSlice, &row)
+		tablePackage.PrintRow(&row)
+	}
 	return ExecuteSuccess
 }
