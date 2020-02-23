@@ -114,7 +114,6 @@ func RunStatement(table *tablePackage.Table, statement *Statement) ExecuteResult
 		// TODO: Create
 	default:
 		fmt.Println("Unkown Statement.")
-		return ExecuteFail
 	}
 	return ExecuteFail
 }

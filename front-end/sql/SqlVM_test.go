@@ -2,6 +2,7 @@ package sql
 
 import (
 	"testing"
+	"tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
 )
 
@@ -63,6 +64,40 @@ func TestPrepareStatement(t *testing.T) {
 
 	if result != PrepareUnrecognizedStatement {
 		t.Errorf("result must be unrecognized statement")
+	}
+
+}
+
+func TestInsertAndSelect(t *testing.T) {
+	inputBuffer := cli.NewInputBuffer()
+	inputBuffer.Buffer = "insert 12 chen we@qq.com"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	table := new(table.Table)
+	var statement Statement
+	result := PrepareStatement(inputBuffer, &statement)
+
+	if result != PrepareSuccess {
+		t.Errorf("result must be success: %v", result)
+	}
+
+	result = RunStatement(table, &statement)
+	if result != ExecuteSuccess {
+		t.Errorf("result must be execute success: %v", result)
+	}
+
+	inputBuffer.Buffer = "select"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	var selectState Statement
+	result = PrepareStatement(inputBuffer, &selectState)
+	if result != PrepareSuccess {
+		t.Errorf("result must be success: %v", result)
+	}
+
+	result = RunStatement(table, &selectState)
+	if result != ExecuteSuccess {
+		t.Errorf("result must be execute success: %v", result)
 	}
 
 }
