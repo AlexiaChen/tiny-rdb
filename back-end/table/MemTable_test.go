@@ -53,3 +53,17 @@ func TestSerialize(t *testing.T) {
 		t.Errorf("deserialize copied size: %v", copied)
 	}
 }
+
+func TestRowSlot(t *testing.T) {
+	var table Table
+	bytesSlice := RowSlot(&table, 12)
+
+	if len(bytesSlice) == 0 {
+		t.Errorf("bytes must be not null.")
+	}
+
+	if table.Pages[0] == nil {
+		t.Errorf("Page 0 must not be null.")
+	}
+
+}

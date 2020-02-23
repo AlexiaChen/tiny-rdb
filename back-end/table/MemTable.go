@@ -91,8 +91,20 @@ func DeserializeRow(src *[]byte, dst *Row) int {
 }
 
 // RowSlot returned address of rownum in specific table
-func RowSlot(table *Table, rowNum uint32) *byte {
-	return nil
+func RowSlot(table *Table, rowNum uint32) []byte {
+	var pageNum uint32 = rowNum / RowsPerPage
+	var page *Page = table.Pages[pageNum]
+	if page == nil {
+		page = new(Page)
+		table.Pages[pageNum] = page
+	}
+
+	var rowOffset uint32 = rowNum % RowsPerPage
+	var byteOffset uint32 = rowOffset * RowSize
+	var offsetSlice []byte = page.Mem[byteOffset:]
+
+	return offsetSlice
+
 }
 
 // PrintRow print row

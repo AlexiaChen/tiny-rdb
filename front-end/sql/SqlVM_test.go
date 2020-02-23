@@ -25,18 +25,22 @@ func TestRunRawCommand(t *testing.T) {
 
 func TestPrepareStatement(t *testing.T) {
 	inputBuffer := cli.NewInputBuffer()
-	inputBuffer.Buffer = "insert"
+	inputBuffer.Buffer = "insert 12 chen we@qq.com"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
 
 	var statement Statement
 	result := PrepareStatement(inputBuffer, &statement)
 
 	if result != PrepareSuccess {
-		t.Errorf("result must be success")
+		t.Errorf("result must be success: %v", result)
 	}
 
 	if statement.Type != InsertStatement {
 		t.Errorf("statement type must be insert statement")
+	}
+
+	if statement.RowToInsert.PrimaryID != 12 {
+		t.Errorf("statement row insert primary id must be 12")
 	}
 
 	inputBuffer.Buffer = "select"

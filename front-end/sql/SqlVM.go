@@ -3,7 +3,8 @@ package sql
 import (
 	"fmt"
 	"os"
-	"tiny-rdb/back-end/table"
+	"strings"
+	tablePackage "tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
 	"tiny-rdb/util"
 )
@@ -39,11 +40,14 @@ type PrepareStatementResult = int
 // RawCommandResult result of raw command
 type RawCommandResult = int
 
+// ExecuteResult result of executed statment
+type ExecuteResult = int
+
 // Statement represent a statment
 type Statement struct {
 	Type        StatementType
-	RowToInsert table.Row
-	RowToDelete table.Row
+	RowToInsert tablePackage.Row
+	RowToDelete tablePackage.Row
 }
 
 // RunRawCommand Run raw command
@@ -59,8 +63,22 @@ func RunRawCommand(inputBuffer *cli.InputBuffer) RawCommandResult {
 
 // PrepareStatement Prepare statement
 func PrepareStatement(inputBuffer *cli.InputBuffer, statement *Statement) PrepareStatementResult {
-	if inputBuffer.Buffer == "insert" {
+	if strings.HasPrefix(inputBuffer.Buffer, "insert") {
 		statement.Type = InsertStatement
+		var UserName string
+		var Email string
+		argsParsed, err := fmt.Sscanf(inputBuffer.Buffer, "insert %d %s %s", &statement.RowToInsert.PrimaryID, &UserName, &Email)
+		if err != nil {
+			return PrepareSyntaxError
+		}
+
+		if argsParsed != 3 {
+			return PrepareSyntaxError
+		}
+
+		copy(statement.RowToInsert.UserName[:], UserName)
+		copy(statement.RowToInsert.Email[:], Email)
+
 		return PrepareSuccess
 	}
 
@@ -96,4 +114,22 @@ func RunStatement(statement *Statement) {
 	default:
 		fmt.Println("Unkown Statement.")
 	}
+}
+
+// RunInsert run insert statment
+func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
+	if table.NumRows >= tablePackage.TableMaxRows {
+		return ExecuteTableFull
+	}
+
+	var rowToInsert *tablePackage.Row = &statement.RowToInsert
+	bytesSlice := tablePackage.RowSlot(table, table.NumRows)
+	tablePackage.SerializeRow(rowToInsert, &bytesSlice)
+	table.NumRows = table.NumRows + 1
+	return ExecuteSuccess
+}
+
+// RunSelect run select statment
+func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
+	return ExecuteSuccess
 }
