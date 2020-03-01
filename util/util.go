@@ -8,7 +8,7 @@ const (
 	ExitFailure = -1
 )
 
-// ToString [] byte to string
+// ToString convert null-terminated byte array to string
 func ToString(byteStr []byte) string {
 	n := bytes.IndexByte(byteStr, 0)
 	return string(byteStr[:n])
