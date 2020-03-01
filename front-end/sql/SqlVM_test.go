@@ -3,7 +3,9 @@ package sql
 import (
 	"testing"
 	"tiny-rdb/back-end/table"
+	tablePackage "tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
+	"tiny-rdb/util"
 )
 
 func TestRunRawCommand(t *testing.T) {
@@ -98,6 +100,25 @@ func TestInsertAndSelect(t *testing.T) {
 	result = RunStatement(table, &selectState)
 	if result != ExecuteSuccess {
 		t.Errorf("result must be execute success: %v", result)
+	}
+
+	for i := uint32(0); i < table.NumRows; i++ {
+		var row tablePackage.Row
+		var readableRow tablePackage.VisualRow
+
+		rowSlotSlice := tablePackage.RowSlot(table, i)
+		rowSize := tablePackage.DeserializeRow(&rowSlotSlice, &row)
+		if rowSize != tablePackage.RowSize {
+			t.Errorf("Row Size Error: %v", rowSize)
+		}
+
+		readableRow.PrimaryID = row.PrimaryID
+		readableRow.UserName = util.ToString(row.UserName[:])
+		readableRow.Email = util.ToString(row.Email[:])
+
+		if readableRow.PrimaryID != 12 || readableRow.UserName != "chen" || readableRow.Email != "we@qq.com" {
+			t.Errorf("Row (%v, %s, %s) Error", readableRow.PrimaryID, readableRow.UserName, readableRow.Email)
+		}
 	}
 
 }

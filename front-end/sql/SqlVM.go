@@ -132,11 +132,18 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 
 // RunSelect run select statment
 func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
-	var row tablePackage.Row
 	for i := uint32(0); i < table.NumRows; i++ {
+		var row tablePackage.Row
+		var readableRow tablePackage.VisualRow
+
 		rowSlotSlice := tablePackage.RowSlot(table, i)
 		tablePackage.DeserializeRow(&rowSlotSlice, &row)
-		tablePackage.PrintRow(&row)
+
+		readableRow.PrimaryID = row.PrimaryID
+		readableRow.UserName = util.ToString(row.UserName[:])
+		readableRow.Email = util.ToString(row.Email[:])
+
+		tablePackage.PrintRow(&readableRow)
 	}
 	return ExecuteSuccess
 }

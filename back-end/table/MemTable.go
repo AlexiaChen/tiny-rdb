@@ -12,6 +12,13 @@ type Row struct {
 	Email     [256]byte
 }
 
+// VisualRow readable row
+type VisualRow struct {
+	PrimaryID uint32
+	UserName  string
+	Email     string
+}
+
 // const var
 const (
 	PrimaryIDSize = 4
@@ -70,6 +77,7 @@ func SerializeRow(src *Row, dst *[]byte) int {
 	unsafeEmail := unsafe.Pointer(&src.Email)
 	Email := (*[EmailSize]byte)(unsafeEmail)
 	copied = copied + copy((*dst)[EmailOffSet:EmailOffSet+EmailSize], (*Email)[0:])
+
 	return copied
 }
 
@@ -87,6 +95,7 @@ func DeserializeRow(src *[]byte, dst *Row) int {
 	unsafeEmail := unsafe.Pointer(&dst.Email)
 	Email := (*[EmailSize]byte)(unsafeEmail)
 	copied = copied + copy((*Email)[0:], (*src)[EmailOffSet:EmailOffSet+EmailSize])
+
 	return copied
 }
 
@@ -108,6 +117,6 @@ func RowSlot(table *Table, rowNum uint32) []byte {
 }
 
 // PrintRow print row
-func PrintRow(row *Row) {
-	fmt.Printf("(%d, %s, %s)\n", row.PrimaryID, row.UserName, row.Email)
+func PrintRow(row *VisualRow) {
+	fmt.Printf("(%d, %v, %v)\n", row.PrimaryID, row.UserName, row.Email)
 }
