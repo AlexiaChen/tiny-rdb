@@ -5,20 +5,6 @@ import (
 	"unsafe"
 )
 
-// Row Table Row
-type Row struct {
-	PrimaryID uint32
-	UserName  [32]byte
-	Email     [256]byte
-}
-
-// VisualRow readable row
-type VisualRow struct {
-	PrimaryID uint32
-	UserName  string
-	Email     string
-}
-
 // const var
 const (
 	PrimaryIDSize = 4
@@ -35,6 +21,20 @@ const (
 	RowsPerPage   = PageSize / RowSize
 	TableMaxRows  = RowsPerPage * TableMaxPages
 )
+
+// Row Table Row
+type Row struct {
+	PrimaryID uint32
+	UserName  [UserNameSize]byte
+	Email     [EmailSize]byte
+}
+
+// VisualRow readable row
+type VisualRow struct {
+	PrimaryID uint32
+	UserName  string
+	Email     string
+}
 
 // Page  one page = 4kB
 type Page struct {

@@ -32,11 +32,14 @@ func main() {
 		switch sql.PrepareStatement(inputBuffer, &statement) {
 		case sql.PrepareSuccess:
 			break
+		case sql.PrepareStringTooLong:
+			fmt.Errorf("String too long")
+			continue
 		case sql.PrepareSyntaxError:
-			fmt.Println("Syntax error. Cannot parse statement.")
+			fmt.Errorf("Syntax Error: Cannot parse statement")
 			continue
 		case sql.PrepareUnrecognizedStatement:
-			fmt.Printf("Unrecognized statement: %v\n", inputBuffer.Buffer)
+			fmt.Errorf("Unrecognized statement: %v", inputBuffer.Buffer)
 			continue
 		}
 
@@ -46,7 +49,7 @@ func main() {
 		case sql.ExecuteTableFull:
 			fmt.Errorf("Error: Table Full")
 		case sql.ExecuteFail:
-			fmt.Errorf("unknown error: failed to execute")
+			fmt.Errorf("Unknown Error: Failed to execute")
 		}
 
 	}

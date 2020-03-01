@@ -17,6 +17,7 @@ const (
 
 	// Prepare Statement Reuslt
 	PrepareSuccess               = iota
+	PrepareStringTooLong         = iota
 	PrepareSyntaxError           = iota
 	PrepareUnrecognizedStatement = iota
 
@@ -62,25 +63,33 @@ func RunRawCommand(inputBuffer *cli.InputBuffer) RawCommandResult {
 	return RawCommandUnrecognizedCMD
 }
 
+func prepareInsert(inputBuffer *cli.InputBuffer, statement *Statement) PrepareStatementResult {
+	statement.Type = InsertStatement
+	var UserName string
+	var Email string
+	argsParsed, err := fmt.Sscanf(inputBuffer.Buffer, "insert %d %s %s", &statement.RowToInsert.PrimaryID, &UserName, &Email)
+	if err != nil {
+		return PrepareSyntaxError
+	}
+
+	if argsParsed != 3 {
+		return PrepareSyntaxError
+	}
+
+	if len(UserName) > tablePackage.UserNameSize || len(Email) > tablePackage.EmailSize {
+		return PrepareStringTooLong
+	}
+
+	copy(statement.RowToInsert.UserName[:], UserName)
+	copy(statement.RowToInsert.Email[:], Email)
+
+	return PrepareSuccess
+}
+
 // PrepareStatement Prepare statement
 func PrepareStatement(inputBuffer *cli.InputBuffer, statement *Statement) PrepareStatementResult {
 	if strings.HasPrefix(inputBuffer.Buffer, "insert") {
-		statement.Type = InsertStatement
-		var UserName string
-		var Email string
-		argsParsed, err := fmt.Sscanf(inputBuffer.Buffer, "insert %d %s %s", &statement.RowToInsert.PrimaryID, &UserName, &Email)
-		if err != nil {
-			return PrepareSyntaxError
-		}
-
-		if argsParsed != 3 {
-			return PrepareSyntaxError
-		}
-
-		copy(statement.RowToInsert.UserName[:], UserName)
-		copy(statement.RowToInsert.Email[:], Email)
-
-		return PrepareSuccess
+		return prepareInsert(inputBuffer, statement)
 	}
 
 	if inputBuffer.Buffer == "select" {

@@ -68,6 +68,14 @@ func TestPrepareStatement(t *testing.T) {
 		t.Errorf("result must be unrecognized statement")
 	}
 
+	inputBuffer.Buffer = "insert 15 xsssliuliuliuliuyifeifeifeifeifei kk@google.com"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	result = PrepareStatement(inputBuffer, &statement)
+	if result != PrepareStringTooLong {
+		t.Errorf("UserName must be too long: %v", len(util.ToString(statement.RowToInsert.UserName[:])))
+	}
+
 }
 
 func TestInsertAndSelect(t *testing.T) {
