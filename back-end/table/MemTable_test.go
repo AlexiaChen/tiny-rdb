@@ -2,6 +2,7 @@ package table
 
 import (
 	"testing"
+	"tiny-rdb/util"
 	"unsafe"
 )
 
@@ -36,11 +37,11 @@ func TestSerialize(t *testing.T) {
 	copy(row.UserName[:], "Jhone")
 	copy(row.Email[:], "jhone@google.com")
 
-	if len(string(row.UserName[:5])) != 5 {
-		t.Errorf("User name: %v size is: %v", string(row.UserName[:5]), len(string(row.UserName[:])))
+	if len(util.ToString(row.UserName[:])) != 5 {
+		t.Errorf("User name: %v size is: %v", util.ToString(row.UserName[:]), len(util.ToString(row.UserName[:])))
 	}
 
-	bytes := make([]byte, 500)
+	bytes := make([]byte, RowSize)
 	copied := SerializeRow(&row, &bytes)
 
 	if copied != RowSize {
@@ -51,6 +52,14 @@ func TestSerialize(t *testing.T) {
 	copied = DeserializeRow(&bytes, &newRow)
 	if copied != RowSize {
 		t.Errorf("deserialize copied size: %v", copied)
+	}
+
+	if newRow.PrimaryID != row.PrimaryID {
+		t.Errorf("deserialized row primary id is must equal to serialized before")
+	}
+
+	if util.ToString(newRow.UserName[:]) != "Jhone" || util.ToString(row.Email[:]) != "jhone@google.com" {
+		t.Errorf("deserialized row username  or email is must equal to serialized before")
 	}
 }
 
