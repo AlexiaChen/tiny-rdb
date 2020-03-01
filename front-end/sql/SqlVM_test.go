@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"fmt"
 	"testing"
 	"tiny-rdb/back-end/table"
 	tablePackage "tiny-rdb/back-end/table"
@@ -127,6 +128,48 @@ func TestInsertAndSelect(t *testing.T) {
 		if readableRow.PrimaryID != 12 || readableRow.UserName != "chen" || readableRow.Email != "we@qq.com" {
 			t.Errorf("Row (%v, %s, %s) Error", readableRow.PrimaryID, readableRow.UserName, readableRow.Email)
 		}
+	}
+
+}
+
+func TestBunchOfInsert(t *testing.T) {
+	table := new(table.Table)
+	inputBuffer := cli.NewInputBuffer()
+
+	for i := 0; i < 500; i++ {
+
+		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
+		inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+		var statement Statement
+		result := PrepareStatement(inputBuffer, &statement)
+
+		if result != PrepareSuccess {
+			t.Errorf("result must be success: %v", result)
+		}
+
+		result = RunStatement(table, &statement)
+		if result != ExecuteSuccess {
+			t.Errorf("result must be execute success: %v", result)
+		}
+	}
+
+	if table.NumRows != 500 {
+		t.Errorf("Row Num must be 500, but it is %v", table.NumRows)
+	}
+
+	inputBuffer.Buffer = "select"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	var selectState Statement
+	result := PrepareStatement(inputBuffer, &selectState)
+	if result != PrepareSuccess {
+		t.Errorf("result must be success: %v", result)
+	}
+
+	result = RunStatement(table, &selectState)
+	if result != ExecuteSuccess {
+		t.Errorf("result must be execute success: %v", result)
 	}
 
 }
