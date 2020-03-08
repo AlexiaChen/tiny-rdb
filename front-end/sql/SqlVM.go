@@ -134,9 +134,22 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 		return ExecuteTableFull
 	}
 
+	fileInf, err := table.Pager.FilePtr.Stat()
+	if err != nil {
+		fmt.Printf("Inserting cannot get lastest file state\n")
+		os.Exit(util.ExitFailure)
+	}
+	table.Pager.FileLength = fileInf.Size()
+
 	rowSlotSlice := tablePackage.RowSlot(table, table.NumRows)
 	tablePackage.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
 	table.NumRows = table.NumRows + 1
+
+	var pageNum uint32 = table.NumRows / tablePackage.RowsPerPage
+	if table.NumRows%tablePackage.RowsPerPage == 0 {
+		tablePackage.FlushPage(table.Pager, pageNum-1, tablePackage.PageSize)
+	}
+
 	return ExecuteSuccess
 }
 

@@ -94,9 +94,10 @@ func OpenDB(filename string) *Table {
 	return table
 }
 
-func flushPage(pager *Pager, pageNum uint32, size uint32) {
+// FlushPage Flush a page from page num in specific size
+func FlushPage(pager *Pager, pageNum uint32, size uint32) {
 	if pager.Pages[pageNum] == nil {
-		fmt.Printf("Error: Flush null page\n")
+		fmt.Printf("Error: Flush null page: %v\n", pageNum)
 		os.Exit(util.ExitFailure)
 	}
 
@@ -116,7 +117,6 @@ func flushPage(pager *Pager, pageNum uint32, size uint32) {
 		fmt.Printf("Write bytes size %v over promised size %v\n", writeBytes, size)
 		os.Exit(util.ExitFailure)
 	}
-
 }
 
 // CloseDB Flushes the page cache to disk and close the DB file
@@ -127,7 +127,7 @@ func CloseDB(table *Table) {
 	var numFulledPage uint32 = table.NumRows / RowsPerPage
 	for i := uint32(0); i < numFulledPage; i++ {
 		if pager.Pages[i] != nil {
-			flushPage(pager, i, PageSize)
+			FlushPage(pager, i, PageSize)
 			pager.Pages[i] = nil
 		}
 	}
@@ -137,10 +137,12 @@ func CloseDB(table *Table) {
 	if notFulledPageRowsNum > 0 {
 		var lastPageNum uint32 = numFulledPage
 		if pager.Pages[lastPageNum] != nil {
-			flushPage(pager, lastPageNum, notFulledPageRowsNum*RowSize)
+			FlushPage(pager, lastPageNum, notFulledPageRowsNum*RowSize)
 			pager.Pages[lastPageNum] = nil
 		}
 	}
+
+	pager.FilePtr.Sync()
 
 	// Close DB file
 	err := pager.FilePtr.Close()
