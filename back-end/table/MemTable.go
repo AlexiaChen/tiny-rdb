@@ -2,6 +2,8 @@ package table
 
 import (
 	"fmt"
+	"os"
+	"tiny-rdb/util"
 	"unsafe"
 )
 
@@ -41,10 +43,17 @@ type Page struct {
 	Mem [PageSize]byte
 }
 
+// Pager Accesses the page cache and the file. The Table object makes requests for pages through the pager
+type Pager struct {
+	FilePtr    *os.File
+	FileLength int64
+	Pages      [TableMaxPages]*Page
+}
+
 // Table  table is consist of pages
 type Table struct {
 	NumRows uint32
-	Pages   [TableMaxPages]*Page
+	Pager   *Pager
 }
 
 // Tables a set of tables
@@ -52,15 +61,93 @@ type Tables struct {
 	TableMap map[string]*Table
 }
 
-// NewTable Make a new table
-func NewTable() *Table {
-	var table *Table
-	table = new(Table)
-	table.NumRows = 0
-	for i := 0; i < TableMaxPages; i++ {
-		table.Pages[i] = nil
+func openPager(filename string) *Pager {
+	filePtr, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		fmt.Printf("Unable to open DB file: %s", err.Error())
+		os.Exit(util.ExitFailure)
 	}
+
+	fileInf, err := os.Stat(filename)
+	if err != nil {
+		fmt.Printf("Unable to get file size: %s", err.Error())
+		os.Exit(util.ExitFailure)
+	}
+
+	var pager *Pager = new(Pager)
+	pager.FilePtr = filePtr
+	pager.FileLength = fileInf.Size()
+
+	for i := 0; i < TableMaxPages; i++ {
+		pager.Pages[i] = nil
+	}
+
+	return pager
+}
+
+// OpenDB Open a new table from DB file
+func OpenDB(filename string) *Table {
+	var table *Table = new(Table)
+	var pager *Pager = openPager(filename)
+	table.NumRows = uint32(pager.FileLength / RowSize)
+	table.Pager = pager
 	return table
+}
+
+func flushPage(pager *Pager, pageNum uint32, size uint32) {
+	if pager.Pages[pageNum] == nil {
+		fmt.Printf("Error: Flush null page")
+		os.Exit(util.ExitFailure)
+	}
+
+	_, err := pager.FilePtr.Seek(int64(pageNum)*int64(PageSize), 0)
+	if err != nil {
+		fmt.Printf("Error: Seeking file %s", err.Error())
+		os.Exit(util.ExitFailure)
+	}
+
+	writeBytes, err := pager.FilePtr.Write(pager.Pages[pageNum].Mem[:size])
+	if err != nil {
+		fmt.Printf("Error writing DB file: %s", err.Error())
+		os.Exit(util.ExitFailure)
+	}
+
+	if uint32(writeBytes) > size {
+		fmt.Printf("Write bytes size %v over promised size %v", writeBytes, size)
+		os.Exit(util.ExitFailure)
+	}
+
+}
+
+// CloseDB Flushes the page cache to disk and close the DB file
+func CloseDB(table *Table) {
+	var pager *Pager = table.Pager
+
+	// Flush fulled pages
+	var numFulledPage uint32 = table.NumRows / RowsPerPage
+	for i := uint32(0); i < numFulledPage; i++ {
+		if pager.Pages[i] != nil {
+			flushPage(pager, i, PageSize)
+			pager.Pages[i] = nil
+		}
+	}
+
+	// Flush last not fulled page
+	var notFulledPageRowsNum uint32 = table.NumRows % RowsPerPage
+	if notFulledPageRowsNum > 0 {
+		var lastPageNum uint32 = numFulledPage
+		if pager.Pages[lastPageNum] != nil {
+			flushPage(pager, lastPageNum, notFulledPageRowsNum*RowSize)
+			pager.Pages[lastPageNum] = nil
+		}
+	}
+
+	// Close DB file
+	err := pager.FilePtr.Close()
+	if err != nil {
+		fmt.Printf("Error closing DB file: %s", err.Error())
+		os.Exit(util.ExitFailure)
+	}
 }
 
 // SerializeRow Serialize Row
@@ -99,21 +186,48 @@ func DeserializeRow(src *[]byte, dst *Row) int {
 	return copied
 }
 
+func getPage(pager *Pager, pageNum uint32) *Page {
+	if pageNum > TableMaxPages {
+		fmt.Printf("page number out of bound: %v", pageNum)
+		os.Exit(util.ExitFailure)
+	}
+
+	if pager.Pages[pageNum] == nil {
+		var page *Page = new(Page)
+		var numPages uint32 = uint32(pager.FileLength / PageSize)
+		// Last page not fulled
+		if pager.FileLength%PageSize != 0 {
+			numPages++
+		}
+
+		if pageNum <= numPages {
+			pager.FilePtr.Seek(int64(pageNum)*int64(PageSize), 0)
+			readBytes, err := pager.FilePtr.Read(page.Mem[:])
+			if err != nil {
+				fmt.Printf("Error reading file: %s", err.Error())
+				os.Exit(util.ExitFailure)
+			}
+			if readBytes > PageSize {
+				fmt.Printf("Read bytes size over PageSize: %v", readBytes)
+				os.Exit(util.ExitFailure)
+			}
+			pager.Pages[pageNum] = page
+		}
+	}
+
+	return pager.Pages[pageNum]
+}
+
 // RowSlot returned address of rownum in specific table
 func RowSlot(table *Table, rowNum uint32) []byte {
 	var pageNum uint32 = rowNum / RowsPerPage
-	var page *Page = table.Pages[pageNum]
-	if page == nil {
-		page = new(Page)
-		table.Pages[pageNum] = page
-	}
 
+	var page *Page = getPage(table.Pager, pageNum)
 	var rowOffset uint32 = rowNum % RowsPerPage
 	var byteOffset uint32 = rowOffset * RowSize
 	var offsetSlice []byte = page.Mem[byteOffset : byteOffset+RowSize]
 
 	return offsetSlice
-
 }
 
 // PrintRow print row

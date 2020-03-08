@@ -2,14 +2,28 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
 	"tiny-rdb/front-end/sql"
+	"tiny-rdb/util"
 )
 
+func initLog() {
+	log.SetFlags(log.Ldate | log.Lmicroseconds | log.Llongfile)
+}
+
 func main() {
+
+	if len(os.Args) < 2 {
+		fmt.Printf("tiny-rdb [db-file]")
+		os.Exit(util.ExitFailure)
+	}
+
+	initLog()
 	inputBuffer := cli.NewInputBuffer()
-	var table *table.Table = new(table.Table)
+	var table *table.Table = table.OpenDB(os.Args[1])
 	for {
 		cli.PrintPrompt()
 		cli.ReadInput(inputBuffer)
@@ -19,7 +33,7 @@ func main() {
 		}
 
 		if cli.IsRawCommand(&(inputBuffer.Buffer)) {
-			switch sql.RunRawCommand(inputBuffer) {
+			switch sql.RunRawCommand(inputBuffer, table) {
 			case sql.RawCommandSuccess:
 				continue
 			case sql.RawCommandUnrecognizedCMD:
@@ -33,13 +47,13 @@ func main() {
 		case sql.PrepareSuccess:
 			break
 		case sql.PrepareStringTooLong:
-			fmt.Errorf("String too long")
+			fmt.Printf("String too long")
 			continue
 		case sql.PrepareSyntaxError:
-			fmt.Errorf("Syntax Error: Cannot parse statement")
+			fmt.Printf("Syntax Error: Cannot parse statement")
 			continue
 		case sql.PrepareUnrecognizedStatement:
-			fmt.Errorf("Unrecognized statement: %v", inputBuffer.Buffer)
+			fmt.Printf("Unrecognized statement: %v", inputBuffer.Buffer)
 			continue
 		}
 
@@ -47,9 +61,9 @@ func main() {
 		case sql.ExecuteSuccess:
 			fmt.Println("Executed statement.")
 		case sql.ExecuteTableFull:
-			fmt.Errorf("Error: Table Full")
+			fmt.Println("Error: Table Full")
 		case sql.ExecuteFail:
-			fmt.Errorf("Unknown Error: Failed to execute")
+			fmt.Println("Unknown Error: Failed to execute")
 		}
 
 	}

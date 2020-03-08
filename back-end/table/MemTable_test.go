@@ -1,19 +1,20 @@
 package table
 
 import (
+	"os"
 	"testing"
 	"tiny-rdb/util"
 	"unsafe"
 )
 
 func TestTable(t *testing.T) {
-
-	table := NewTable()
+	fileDB := "./Table.dat"
+	table := OpenDB(fileDB)
 	if table.NumRows != 0 {
 		t.Errorf("Num rows must be 0")
 	}
 
-	if len(table.Pages) != TableMaxPages {
+	if len(table.Pager.Pages) != TableMaxPages {
 		t.Errorf("Table Max Pages is error")
 	}
 
@@ -27,6 +28,10 @@ func TestTable(t *testing.T) {
 	if unsafe.Sizeof(*page) != PageSize {
 		t.Errorf("Page size is error %v", unsafe.Sizeof(*page))
 	}
+
+	CloseDB(table)
+
+	os.Remove(fileDB)
 
 }
 
@@ -64,15 +69,17 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestRowSlot(t *testing.T) {
-	var table Table
-	bytesSlice := RowSlot(&table, 12)
+
+	table := OpenDB("./RowSlot.dat")
+	bytesSlice := RowSlot(table, 12)
 
 	if len(bytesSlice) != RowSize {
 		t.Errorf("bytesSlice  len must be not empty.")
 	}
 
-	if table.Pages[0] == nil {
+	if table.Pager.Pages[0] == nil {
 		t.Errorf("Page 0 must not be null.")
 	}
 
+	CloseDB(table)
 }
