@@ -143,8 +143,8 @@ func TestBunchOfInsert(t *testing.T) {
 	dbFile := "./BunchOfInsert.db"
 	table := tablePackage.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
-
-	for i := 0; i < 500; i++ {
+	InsertNum := uint32(500)
+	for i := uint32(0); i < InsertNum; i++ {
 
 		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
 		inputBuffer.BufLen = len(inputBuffer.Buffer)
@@ -162,8 +162,8 @@ func TestBunchOfInsert(t *testing.T) {
 		}
 	}
 
-	if table.NumRows != 500 {
-		t.Errorf("Row Num must be 500, but it is %v", table.NumRows)
+	if table.NumRows != InsertNum {
+		t.Errorf("Row Num must be %v, but it is %v", InsertNum, table.NumRows)
 	}
 
 	inputBuffer.Buffer = "select"
@@ -181,5 +181,16 @@ func TestBunchOfInsert(t *testing.T) {
 	}
 
 	tablePackage.CloseDB(table)
+
+	tableNew := tablePackage.OpenDB(dbFile)
+
+	if tableNew.NumRows != InsertNum {
+		t.Errorf("Row Num must be %v, but it is %v", InsertNum, tableNew.NumRows)
+	}
+
+	// if tableNew.Pager.FileLength != int64(InsertNum)*tablePackage.RowSize {
+	// 	t.Errorf("%v rows size must be %v, but it is %v", tableNew.NumRows, InsertNum*tablePackage.RowSize, tableNew.Pager.FileLength)
+	// }
+	tablePackage.CloseDB(tableNew)
 	os.Remove(dbFile)
 }
