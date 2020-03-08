@@ -64,13 +64,13 @@ type Tables struct {
 func openPager(filename string) *Pager {
 	filePtr, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
-		fmt.Printf("Unable to open DB file: %s", err.Error())
+		fmt.Printf("Unable to open DB file: %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 
 	fileInf, err := os.Stat(filename)
 	if err != nil {
-		fmt.Printf("Unable to get file size: %s", err.Error())
+		fmt.Printf("Unable to get file size: %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 
@@ -96,24 +96,24 @@ func OpenDB(filename string) *Table {
 
 func flushPage(pager *Pager, pageNum uint32, size uint32) {
 	if pager.Pages[pageNum] == nil {
-		fmt.Printf("Error: Flush null page")
+		fmt.Printf("Error: Flush null page\n")
 		os.Exit(util.ExitFailure)
 	}
 
 	_, err := pager.FilePtr.Seek(int64(pageNum)*int64(PageSize), 0)
 	if err != nil {
-		fmt.Printf("Error: Seeking file %s", err.Error())
+		fmt.Printf("Error: Seeking file %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 
 	writeBytes, err := pager.FilePtr.Write(pager.Pages[pageNum].Mem[:size])
 	if err != nil {
-		fmt.Printf("Error writing DB file: %s", err.Error())
+		fmt.Printf("Error writing DB file: %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 
 	if uint32(writeBytes) > size {
-		fmt.Printf("Write bytes size %v over promised size %v", writeBytes, size)
+		fmt.Printf("Write bytes size %v over promised size %v\n", writeBytes, size)
 		os.Exit(util.ExitFailure)
 	}
 
@@ -145,7 +145,7 @@ func CloseDB(table *Table) {
 	// Close DB file
 	err := pager.FilePtr.Close()
 	if err != nil {
-		fmt.Printf("Error closing DB file: %s", err.Error())
+		fmt.Printf("Error closing DB file: %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 }
@@ -188,7 +188,7 @@ func DeserializeRow(src *[]byte, dst *Row) int {
 
 func getPage(pager *Pager, pageNum uint32) *Page {
 	if pageNum > TableMaxPages {
-		fmt.Printf("page number out of bound: %v", pageNum)
+		fmt.Printf("page number out of bound: %v\n", pageNum)
 		os.Exit(util.ExitFailure)
 	}
 
@@ -204,11 +204,11 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 			pager.FilePtr.Seek(int64(pageNum)*int64(PageSize), 0)
 			readBytes, err := pager.FilePtr.Read(page.Mem[:])
 			if err != nil {
-				fmt.Printf("Error reading file: %s", err.Error())
+				fmt.Printf("Error reading file: %s\n", err.Error())
 				os.Exit(util.ExitFailure)
 			}
 			if readBytes > PageSize {
-				fmt.Printf("Read bytes size over PageSize: %v", readBytes)
+				fmt.Printf("Read bytes size over PageSize: %v\n", readBytes)
 				os.Exit(util.ExitFailure)
 			}
 			pager.Pages[pageNum] = page
