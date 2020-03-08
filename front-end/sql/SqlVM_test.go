@@ -2,8 +2,8 @@ package sql
 
 import (
 	"fmt"
+	"os"
 	"testing"
-	"tiny-rdb/back-end/table"
 	tablePackage "tiny-rdb/back-end/table"
 	"tiny-rdb/front-end/cli"
 	"tiny-rdb/util"
@@ -13,17 +13,21 @@ func TestRunRawCommand(t *testing.T) {
 	inputBuffer := cli.NewInputBuffer()
 	inputBuffer.Buffer = "testCmd"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
-
-	if RunRawCommand(inputBuffer) != RawCommandUnrecognizedCMD {
+	dbFile := "./RawCmd.db"
+	table := tablePackage.OpenDB(dbFile)
+	if RunRawCommand(inputBuffer, table) != RawCommandUnrecognizedCMD {
 		t.Errorf("Command is not unrecognized command")
 	}
 
 	inputBuffer.Buffer = "#other"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
 
-	if RunRawCommand(inputBuffer) != RawCommandSuccess {
+	if RunRawCommand(inputBuffer, table) != RawCommandSuccess {
 		t.Errorf("Command is not success command")
 	}
+
+	tablePackage.CloseDB(table)
+	os.Remove(dbFile)
 
 }
 
@@ -83,8 +87,8 @@ func TestInsertAndSelect(t *testing.T) {
 	inputBuffer := cli.NewInputBuffer()
 	inputBuffer.Buffer = "insert 12 chen we@qq.com"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
-
-	table := new(table.Table)
+	dbFile := "./InsertAndSelect.db"
+	table := tablePackage.OpenDB(dbFile)
 	var statement Statement
 	result := PrepareStatement(inputBuffer, &statement)
 
@@ -130,10 +134,14 @@ func TestInsertAndSelect(t *testing.T) {
 		}
 	}
 
+	tablePackage.CloseDB(table)
+	os.Remove(dbFile)
+
 }
 
 func TestBunchOfInsert(t *testing.T) {
-	table := new(table.Table)
+	dbFile := "./BunchOfInsert.db"
+	table := tablePackage.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
 
 	for i := 0; i < 500; i++ {
@@ -172,4 +180,6 @@ func TestBunchOfInsert(t *testing.T) {
 		t.Errorf("result must be execute success: %v", result)
 	}
 
+	tablePackage.CloseDB(table)
+	os.Remove(dbFile)
 }
