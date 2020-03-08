@@ -53,8 +53,9 @@ type Statement struct {
 }
 
 // RunRawCommand Run raw command
-func RunRawCommand(inputBuffer *cli.InputBuffer) RawCommandResult {
+func RunRawCommand(inputBuffer *cli.InputBuffer, table *tablePackage.Table) RawCommandResult {
 	if inputBuffer.Buffer == "#exit" || inputBuffer.Buffer == "#quit" {
+		tablePackage.CloseDB(table)
 		os.Exit(util.ExitSuccess)
 	}
 	if inputBuffer.Buffer == "#other" {
