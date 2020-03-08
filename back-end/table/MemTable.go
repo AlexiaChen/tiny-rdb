@@ -201,16 +201,36 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 		}
 
 		if pageNum <= numPages {
-			pager.FilePtr.Seek(int64(pageNum)*int64(PageSize), 0)
-			readBytes, err := pager.FilePtr.Read(page.Mem[:])
-			if err != nil {
-				fmt.Printf("Error reading file: %s\n", err.Error())
-				os.Exit(util.ExitFailure)
+			var fileOffSet int64 = int64(pageNum) * int64(PageSize)
+			pager.FilePtr.Seek(fileOffSet, 0)
+
+			var restOfSize int64 = pager.FileLength - fileOffSet
+			if restOfSize >= PageSize {
+				readBytes, err := pager.FilePtr.Read(page.Mem[:])
+				if err != nil {
+					fmt.Printf("Error reading file: %s\n", err.Error())
+					os.Exit(util.ExitFailure)
+				}
+
+				if readBytes != PageSize {
+					fmt.Printf("Read Bytes %v not equal to PageSize(4kB)\n", readBytes)
+					os.Exit(util.ExitFailure)
+				}
 			}
-			if readBytes > PageSize {
-				fmt.Printf("Read bytes size over PageSize: %v\n", readBytes)
-				os.Exit(util.ExitFailure)
+
+			if restOfSize < PageSize {
+				readBytes, err := pager.FilePtr.Read(page.Mem[:restOfSize])
+				if err != nil {
+					fmt.Printf("Error reading file: %s\n", err.Error())
+					os.Exit(util.ExitFailure)
+				}
+
+				if int64(readBytes) != restOfSize {
+					fmt.Printf("Read Bytes %v not equal to restOfSize %v\n", readBytes, restOfSize)
+					os.Exit(util.ExitFailure)
+				}
 			}
+
 			pager.Pages[pageNum] = page
 		}
 	}

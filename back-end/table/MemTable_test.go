@@ -8,7 +8,7 @@ import (
 )
 
 func TestTable(t *testing.T) {
-	fileDB := "./Table.dat"
+	fileDB := "./Table.db"
 	table := OpenDB(fileDB)
 	if table.NumRows != 0 {
 		t.Errorf("Num rows must be 0")
@@ -70,7 +70,8 @@ func TestSerialize(t *testing.T) {
 
 func TestRowSlot(t *testing.T) {
 
-	table := OpenDB("./RowSlot.dat")
+	dbFile := "./RowSlot.db"
+	table := OpenDB(dbFile)
 	bytesSlice := RowSlot(table, 12)
 
 	if len(bytesSlice) != RowSize {
@@ -82,4 +83,5 @@ func TestRowSlot(t *testing.T) {
 	}
 
 	CloseDB(table)
+	os.Remove(dbFile)
 }
