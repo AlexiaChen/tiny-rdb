@@ -188,9 +188,41 @@ func TestBunchOfInsert(t *testing.T) {
 		t.Errorf("Row Num must be %v, but it is %v", InsertNum, tableNew.NumRows)
 	}
 
-	// if tableNew.Pager.FileLength != int64(InsertNum)*tablePackage.RowSize {
-	// 	t.Errorf("%v rows size must be %v, but it is %v", tableNew.NumRows, InsertNum*tablePackage.RowSize, tableNew.Pager.FileLength)
-	// }
+	tablePackage.CloseDB(tableNew)
+	os.Remove(dbFile)
+}
+
+func TestFileLength(t *testing.T) {
+	dbFile := "./FileLen.db"
+	table := tablePackage.OpenDB(dbFile)
+	inputBuffer := cli.NewInputBuffer()
+	InsertNum := uint32(100)
+	for i := uint32(0); i < InsertNum; i++ {
+
+		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
+		inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+		var statement Statement
+		result := PrepareStatement(inputBuffer, &statement)
+
+		if result != PrepareSuccess {
+			t.Errorf("result must be success: %v", result)
+		}
+
+		result = RunStatement(table, &statement)
+		if result != ExecuteSuccess {
+			t.Errorf("result must be execute success: %v", result)
+		}
+	}
+
+	tablePackage.CloseDB(table)
+
+	tableNew := tablePackage.OpenDB(dbFile)
+	RealFileLenght := (tableNew.NumRows/tablePackage.RowsPerPage)*tablePackage.PageSize + (table.NumRows%tablePackage.RowsPerPage)*tablePackage.RowSize
+	if tableNew.Pager.FileLength != int64(RealFileLenght) {
+		t.Errorf("%v rows size must be %v, but it is %v", tableNew.NumRows, RealFileLenght, tableNew.Pager.FileLength)
+	}
+
 	tablePackage.CloseDB(tableNew)
 	os.Remove(dbFile)
 }
