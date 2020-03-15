@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	tablePackage "tiny-rdb/back-end/table"
-	"tiny-rdb/front-end/cli"
+	"tiny-rdb/backend"
+	"tiny-rdb/frontend/cli"
 	"tiny-rdb/util"
 )
 
@@ -14,7 +14,7 @@ func TestRunRawCommand(t *testing.T) {
 	inputBuffer.Buffer = "testCmd"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
 	dbFile := "./RawCmd.db"
-	table := tablePackage.OpenDB(dbFile)
+	table := backend.OpenDB(dbFile)
 	if RunRawCommand(inputBuffer, table) != RawCommandUnrecognizedCMD {
 		t.Errorf("Command is not unrecognized command")
 	}
@@ -26,7 +26,7 @@ func TestRunRawCommand(t *testing.T) {
 		t.Errorf("Command is not success command")
 	}
 
-	tablePackage.CloseDB(table)
+	backend.CloseDB(table)
 	os.Remove(dbFile)
 
 }
@@ -88,7 +88,7 @@ func TestInsertAndSelect(t *testing.T) {
 	inputBuffer.Buffer = "insert 12 chen we@qq.com"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
 	dbFile := "./InsertAndSelect.db"
-	table := tablePackage.OpenDB(dbFile)
+	table := backend.OpenDB(dbFile)
 	var statement Statement
 	result := PrepareStatement(inputBuffer, &statement)
 
@@ -115,14 +115,14 @@ func TestInsertAndSelect(t *testing.T) {
 		t.Errorf("result must be execute success: %v", result)
 	}
 
-	var cursor *tablePackage.Cursor = tablePackage.CursorBegin(table)
+	var cursor *backend.Cursor = backend.CursorBegin(table)
 	for !cursor.IsEndOfTable {
-		var row tablePackage.Row
-		var readableRow tablePackage.VisualRow
+		var row backend.Row
+		var readableRow backend.VisualRow
 
-		rowSlotSlice := tablePackage.CursorValue(cursor)
-		rowSize := tablePackage.DeserializeRow(&rowSlotSlice, &row)
-		if rowSize != tablePackage.RowSize {
+		rowSlotSlice := backend.CursorValue(cursor)
+		rowSize := backend.DeserializeRow(&rowSlotSlice, &row)
+		if rowSize != backend.RowSize {
 			t.Errorf("Row Size Error: %v", rowSize)
 		}
 
@@ -134,17 +134,17 @@ func TestInsertAndSelect(t *testing.T) {
 			t.Errorf("Row (%v, %s, %s) Error", readableRow.PrimaryID, readableRow.UserName, readableRow.Email)
 		}
 
-		tablePackage.CursorNext(cursor)
+		backend.CursorNext(cursor)
 	}
 
-	tablePackage.CloseDB(table)
+	backend.CloseDB(table)
 	os.Remove(dbFile)
 
 }
 
 func TestBunchOfInsert(t *testing.T) {
 	dbFile := "./BunchOfInsert.db"
-	table := tablePackage.OpenDB(dbFile)
+	table := backend.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
 	InsertNum := uint32(500)
 	for i := uint32(0); i < InsertNum; i++ {
@@ -183,21 +183,21 @@ func TestBunchOfInsert(t *testing.T) {
 		t.Errorf("result must be execute success: %v", result)
 	}
 
-	tablePackage.CloseDB(table)
+	backend.CloseDB(table)
 
-	tableNew := tablePackage.OpenDB(dbFile)
+	tableNew := backend.OpenDB(dbFile)
 
 	if tableNew.NumRows != InsertNum {
 		t.Errorf("Row Num must be %v, but it is %v", InsertNum, tableNew.NumRows)
 	}
 
-	tablePackage.CloseDB(tableNew)
+	backend.CloseDB(tableNew)
 	os.Remove(dbFile)
 }
 
 func TestFileLength(t *testing.T) {
 	dbFile := "./FileLen.db"
-	table := tablePackage.OpenDB(dbFile)
+	table := backend.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
 	InsertNum := uint32(100)
 	for i := uint32(0); i < InsertNum; i++ {
@@ -218,14 +218,14 @@ func TestFileLength(t *testing.T) {
 		}
 	}
 
-	tablePackage.CloseDB(table)
+	backend.CloseDB(table)
 
-	tableNew := tablePackage.OpenDB(dbFile)
-	RealFileLenght := (tableNew.NumRows/tablePackage.RowsPerPage)*tablePackage.PageSize + (table.NumRows%tablePackage.RowsPerPage)*tablePackage.RowSize
+	tableNew := backend.OpenDB(dbFile)
+	RealFileLenght := (tableNew.NumRows/backend.RowsPerPage)*backend.PageSize + (table.NumRows%backend.RowsPerPage)*backend.RowSize
 	if tableNew.Pager.FileLength != int64(RealFileLenght) {
 		t.Errorf("%v rows size must be %v, but it is %v", tableNew.NumRows, RealFileLenght, tableNew.Pager.FileLength)
 	}
 
-	tablePackage.CloseDB(tableNew)
+	backend.CloseDB(tableNew)
 	os.Remove(dbFile)
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"tiny-rdb/back-end/table"
-	"tiny-rdb/front-end/cli"
-	"tiny-rdb/front-end/sql"
+	"tiny-rdb/backend"
+	"tiny-rdb/frontend/cli"
+	"tiny-rdb/frontend/sql"
 	"tiny-rdb/util"
 )
 
@@ -23,7 +23,7 @@ func main() {
 
 	initLog()
 	inputBuffer := cli.NewInputBuffer()
-	var table *table.Table = table.OpenDB(os.Args[1])
+	var table *backend.Table = backend.OpenDB(os.Args[1])
 	for {
 		cli.PrintPrompt()
 		cli.ReadInput(inputBuffer)

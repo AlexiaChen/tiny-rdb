@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	tablePackage "tiny-rdb/back-end/table"
-	"tiny-rdb/front-end/cli"
+	"tiny-rdb/backend"
+	"tiny-rdb/frontend/cli"
 	"tiny-rdb/util"
 )
 
@@ -48,14 +48,14 @@ type ExecuteResult = int
 // Statement represent a statment
 type Statement struct {
 	Type        StatementType
-	RowToInsert tablePackage.Row
-	RowToDelete tablePackage.Row
+	RowToInsert backend.Row
+	RowToDelete backend.Row
 }
 
 // RunRawCommand Run raw command
-func RunRawCommand(inputBuffer *cli.InputBuffer, table *tablePackage.Table) RawCommandResult {
+func RunRawCommand(inputBuffer *cli.InputBuffer, table *backend.Table) RawCommandResult {
 	if inputBuffer.Buffer == "#exit" || inputBuffer.Buffer == "#quit" {
-		tablePackage.CloseDB(table)
+		backend.CloseDB(table)
 		os.Exit(util.ExitSuccess)
 	}
 	if inputBuffer.Buffer == "#other" {
@@ -77,7 +77,7 @@ func prepareInsert(inputBuffer *cli.InputBuffer, statement *Statement) PrepareSt
 		return PrepareSyntaxError
 	}
 
-	if len(UserName) > tablePackage.UserNameSize || len(Email) > tablePackage.EmailSize {
+	if len(UserName) > backend.UserNameSize || len(Email) > backend.EmailSize {
 		return PrepareStringTooLong
 	}
 
@@ -112,7 +112,7 @@ func PrepareStatement(inputBuffer *cli.InputBuffer, statement *Statement) Prepar
 }
 
 // RunStatement Run statement
-func RunStatement(table *tablePackage.Table, statement *Statement) ExecuteResult {
+func RunStatement(table *backend.Table, statement *Statement) ExecuteResult {
 	switch statement.Type {
 	case InsertStatement:
 		return RunInsert(table, statement)
@@ -129,8 +129,8 @@ func RunStatement(table *tablePackage.Table, statement *Statement) ExecuteResult
 }
 
 // RunInsert run insert statment
-func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
-	if table.NumRows >= tablePackage.TableMaxRows {
+func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
+	if table.NumRows >= backend.TableMaxRows {
 		return ExecuteTableFull
 	}
 
@@ -141,36 +141,36 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 	}
 	table.Pager.FileLength = fileInf.Size()
 
-	var cursor *tablePackage.Cursor = tablePackage.CursorEnd(table)
-	rowSlotSlice := tablePackage.CursorValue(cursor)
-	tablePackage.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
+	var cursor *backend.Cursor = backend.CursorEnd(table)
+	rowSlotSlice := backend.CursorValue(cursor)
+	backend.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
 	table.NumRows = table.NumRows + 1
 
-	var pageNum uint32 = table.NumRows / tablePackage.RowsPerPage
-	if table.NumRows%tablePackage.RowsPerPage == 0 {
-		tablePackage.FlushPage(table.Pager, pageNum-1, tablePackage.PageSize)
+	var pageNum uint32 = table.NumRows / backend.RowsPerPage
+	if table.NumRows%backend.RowsPerPage == 0 {
+		backend.FlushPage(table.Pager, pageNum-1, backend.PageSize)
 	}
 
 	return ExecuteSuccess
 }
 
 // RunSelect run select statment
-func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
-	var cursor *tablePackage.Cursor = tablePackage.CursorBegin(table)
+func RunSelect(table *backend.Table, statement *Statement) ExecuteResult {
+	var cursor *backend.Cursor = backend.CursorBegin(table)
 	for !cursor.IsEndOfTable {
-		var row tablePackage.Row
-		var readableRow tablePackage.VisualRow
+		var row backend.Row
+		var readableRow backend.VisualRow
 
-		rowSlotSlice := tablePackage.CursorValue(cursor)
-		tablePackage.DeserializeRow(&rowSlotSlice, &row)
+		rowSlotSlice := backend.CursorValue(cursor)
+		backend.DeserializeRow(&rowSlotSlice, &row)
 
 		readableRow.PrimaryID = row.PrimaryID
 		readableRow.UserName = util.ToString(row.UserName[:])
 		readableRow.Email = util.ToString(row.Email[:])
 
-		tablePackage.PrintRow(&readableRow)
+		backend.PrintRow(&readableRow)
 
-		tablePackage.CursorNext(cursor)
+		backend.CursorNext(cursor)
 	}
 
 	return ExecuteSuccess

@@ -1,4 +1,4 @@
-package table
+package backend
 
 import (
 	"os"
@@ -68,7 +68,7 @@ func TestSerialize(t *testing.T) {
 	}
 }
 
-func TestRowSlot(t *testing.T) {
+func TestCursor(t *testing.T) {
 
 	dbFile := "./RowSlot.db"
 	table := OpenDB(dbFile)
