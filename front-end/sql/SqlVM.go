@@ -141,7 +141,8 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 	}
 	table.Pager.FileLength = fileInf.Size()
 
-	rowSlotSlice := tablePackage.RowSlot(table, table.NumRows)
+	var cursor *tablePackage.Cursor = tablePackage.CursorEnd(table)
+	rowSlotSlice := tablePackage.CursorValue(cursor)
 	tablePackage.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
 	table.NumRows = table.NumRows + 1
 
@@ -155,11 +156,12 @@ func RunInsert(table *tablePackage.Table, statement *Statement) ExecuteResult {
 
 // RunSelect run select statment
 func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
-	for i := uint32(0); i < table.NumRows; i++ {
+	var cursor *tablePackage.Cursor = tablePackage.CursorBegin(table)
+	for !cursor.IsEndOfTable {
 		var row tablePackage.Row
 		var readableRow tablePackage.VisualRow
 
-		rowSlotSlice := tablePackage.RowSlot(table, i)
+		rowSlotSlice := tablePackage.CursorValue(cursor)
 		tablePackage.DeserializeRow(&rowSlotSlice, &row)
 
 		readableRow.PrimaryID = row.PrimaryID
@@ -167,6 +169,9 @@ func RunSelect(table *tablePackage.Table, statement *Statement) ExecuteResult {
 		readableRow.Email = util.ToString(row.Email[:])
 
 		tablePackage.PrintRow(&readableRow)
+
+		tablePackage.CursorNext(cursor)
 	}
+
 	return ExecuteSuccess
 }

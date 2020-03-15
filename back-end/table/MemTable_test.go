@@ -72,7 +72,8 @@ func TestRowSlot(t *testing.T) {
 
 	dbFile := "./RowSlot.db"
 	table := OpenDB(dbFile)
-	bytesSlice := RowSlot(table, 12)
+	var cursor *Cursor = CursorBegin(table)
+	bytesSlice := CursorValue(cursor)
 
 	if len(bytesSlice) != RowSize {
 		t.Errorf("bytesSlice  len must be not empty.")

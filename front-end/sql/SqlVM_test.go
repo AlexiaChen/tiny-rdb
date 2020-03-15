@@ -115,11 +115,12 @@ func TestInsertAndSelect(t *testing.T) {
 		t.Errorf("result must be execute success: %v", result)
 	}
 
-	for i := uint32(0); i < table.NumRows; i++ {
+	var cursor *tablePackage.Cursor = tablePackage.CursorBegin(table)
+	for !cursor.IsEndOfTable {
 		var row tablePackage.Row
 		var readableRow tablePackage.VisualRow
 
-		rowSlotSlice := tablePackage.RowSlot(table, i)
+		rowSlotSlice := tablePackage.CursorValue(cursor)
 		rowSize := tablePackage.DeserializeRow(&rowSlotSlice, &row)
 		if rowSize != tablePackage.RowSize {
 			t.Errorf("Row Size Error: %v", rowSize)
@@ -132,6 +133,8 @@ func TestInsertAndSelect(t *testing.T) {
 		if readableRow.PrimaryID != 12 || readableRow.UserName != "chen" || readableRow.Email != "we@qq.com" {
 			t.Errorf("Row (%v, %s, %s) Error", readableRow.PrimaryID, readableRow.UserName, readableRow.Email)
 		}
+
+		tablePackage.CursorNext(cursor)
 	}
 
 	tablePackage.CloseDB(table)

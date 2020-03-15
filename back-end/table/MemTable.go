@@ -61,6 +61,36 @@ type Tables struct {
 	TableMap map[string]*Table
 }
 
+// Cursor a cursor point to a row of the table, likes a iterator of other language for containor
+type Cursor struct {
+	table        *Table
+	rowNum       uint32
+	IsEndOfTable bool
+}
+
+// CursorBegin create a cursor point to begin of the table
+func CursorBegin(table *Table) *Cursor {
+	var cursor *Cursor = new(Cursor)
+	cursor.table = table
+	cursor.rowNum = 0
+
+	if table.NumRows == 0 {
+		cursor.IsEndOfTable = true
+	} else {
+		cursor.IsEndOfTable = false
+	}
+	return cursor
+}
+
+// CursorEnd create a cursor point to end of the table
+func CursorEnd(table *Table) *Cursor {
+	var cursor *Cursor = new(Cursor)
+	cursor.table = table
+	cursor.rowNum = table.NumRows
+	cursor.IsEndOfTable = true
+	return cursor
+}
+
 func openPager(filename string) *Pager {
 	filePtr, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
@@ -240,16 +270,24 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 	return pager.Pages[pageNum]
 }
 
-// RowSlot returned address of rownum in specific table
-func RowSlot(table *Table, rowNum uint32) []byte {
-	var pageNum uint32 = rowNum / RowsPerPage
+// CursorValue returned address of a cursor pointed to specific row
+func CursorValue(cursor *Cursor) []byte {
+	var pageNum uint32 = cursor.rowNum / RowsPerPage
 
-	var page *Page = getPage(table.Pager, pageNum)
-	var rowOffset uint32 = rowNum % RowsPerPage
+	var page *Page = getPage(cursor.table.Pager, pageNum)
+	var rowOffset uint32 = cursor.rowNum % RowsPerPage
 	var byteOffset uint32 = rowOffset * RowSize
 	var offsetSlice []byte = page.Mem[byteOffset : byteOffset+RowSize]
 
 	return offsetSlice
+}
+
+// CursorNext next cursor
+func CursorNext(cursor *Cursor) {
+	cursor.rowNum++
+	if cursor.rowNum >= cursor.table.NumRows {
+		cursor.IsEndOfTable = true
+	}
 }
 
 // PrintRow print row
