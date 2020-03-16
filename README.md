@@ -1,5 +1,7 @@
 # Tiny Relational DataBase
 
+![Go](https://github.com/AlexiaChen/tiny-rdb/workflows/Go/badge.svg)
+
 A tiny relational database(tiny-rdb) with persistent B+ tree, but it does not support transaction and SQL. the query language just simple query command.
 
 ## Under development
