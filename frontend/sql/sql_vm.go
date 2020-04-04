@@ -148,7 +148,7 @@ func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
 
 	var pageNum uint32 = table.NumRows / backend.RowsPerPage
 	if table.NumRows%backend.RowsPerPage == 0 {
-		backend.FlushPage(table.Pager, pageNum-1, backend.PageSize)
+		backend.FlushPage(table.Pager, pageNum-1)
 	}
 
 	return ExecuteSuccess

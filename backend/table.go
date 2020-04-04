@@ -20,8 +20,6 @@ const (
 
 	TableMaxPages = 100
 	PageSize      = 4 * 1024 // 4KB
-	RowsPerPage   = PageSize / RowSize
-	TableMaxRows  = RowsPerPage * TableMaxPages
 )
 
 // Row Table Row
@@ -47,13 +45,14 @@ type Page struct {
 type Pager struct {
 	FilePtr    *os.File
 	FileLength int64
+	NumPages   uint32
 	Pages      [TableMaxPages]*Page
 }
 
 // Table  table is consist of pages
 type Table struct {
-	NumRows uint32
-	Pager   *Pager
+	RootPageNum uint32
+	Pager       *Pager
 }
 
 // Tables a set of tables
@@ -64,7 +63,8 @@ type Tables struct {
 // Cursor a cursor point to a row of the table, likes a iterator of other language for containor
 type Cursor struct {
 	table        *Table
-	rowNum       uint32
+	pageNum      uint32
+	cellNum      uint32
 	IsEndOfTable bool
 }
 
@@ -72,9 +72,13 @@ type Cursor struct {
 func CursorBegin(table *Table) *Cursor {
 	var cursor *Cursor = new(Cursor)
 	cursor.table = table
-	cursor.rowNum = 0
+	cursor.pageNum = table.RootPageNum
+	cursor.cellNum = 0
 
-	if table.NumRows == 0 {
+	var rootPage *Page = getPage(table.Pager, table.RootPageNum)
+	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
+
+	if numCells == 0 {
 		cursor.IsEndOfTable = true
 	} else {
 		cursor.IsEndOfTable = false
@@ -86,7 +90,11 @@ func CursorBegin(table *Table) *Cursor {
 func CursorEnd(table *Table) *Cursor {
 	var cursor *Cursor = new(Cursor)
 	cursor.table = table
-	cursor.rowNum = table.NumRows
+	cursor.pageNum = table.RootPageNum
+
+	var rootPage *Page = getPage(table.Pager, table.RootPageNum)
+	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
+	cursor.cellNum = numCells
 	cursor.IsEndOfTable = true
 	return cursor
 }
@@ -107,6 +115,12 @@ func openPager(filename string) *Pager {
 	var pager *Pager = new(Pager)
 	pager.FilePtr = filePtr
 	pager.FileLength = fileInf.Size()
+	pager.NumPages = uint32(fileInf.Size() / PageSize)
+
+	if pager.FileLength%PageSize != 0 {
+		fmt.Printf("DB File is not contains a whole mumber of pages, Corrupt File.\n")
+		os.Exit(util.ExitFailure)
+	}
 
 	for i := 0; i < TableMaxPages; i++ {
 		pager.Pages[i] = nil
@@ -119,13 +133,17 @@ func openPager(filename string) *Pager {
 func OpenDB(filename string) *Table {
 	var table *Table = new(Table)
 	var pager *Pager = openPager(filename)
-	table.NumRows = uint32(pager.FileLength / RowSize)
-	table.Pager = pager
+	table.RootPageNum = 0
+
+	if pager.NumPages == 0 {
+		var page *Page = getPage(pager, 0)
+		InitializeLeafNode(page.Mem[:])
+	}
 	return table
 }
 
 // FlushPage Flush a page from page num in specific size
-func FlushPage(pager *Pager, pageNum uint32, size uint32) {
+func FlushPage(pager *Pager, pageNum uint32) {
 	if pager.Pages[pageNum] == nil {
 		fmt.Printf("Error: Flush null page: %v\n", pageNum)
 		os.Exit(util.ExitFailure)
@@ -137,14 +155,14 @@ func FlushPage(pager *Pager, pageNum uint32, size uint32) {
 		os.Exit(util.ExitFailure)
 	}
 
-	writeBytes, err := pager.FilePtr.Write(pager.Pages[pageNum].Mem[:size])
+	writeBytes, err := pager.FilePtr.Write(pager.Pages[pageNum].Mem[:PageSize])
 	if err != nil {
 		fmt.Printf("Error writing DB file: %s\n", err.Error())
 		os.Exit(util.ExitFailure)
 	}
 
-	if uint32(writeBytes) > size {
-		fmt.Printf("Write bytes size %v over promised size %v\n", writeBytes, size)
+	if uint32(writeBytes) > PageSize {
+		fmt.Printf("Write bytes size %v over promised size %v\n", writeBytes, PageSize)
 		os.Exit(util.ExitFailure)
 	}
 }
@@ -154,21 +172,10 @@ func CloseDB(table *Table) {
 	var pager *Pager = table.Pager
 
 	// Flush fulled pages
-	var numFulledPage uint32 = table.NumRows / RowsPerPage
-	for i := uint32(0); i < numFulledPage; i++ {
+	for i := uint32(0); i < pager.NumPages; i++ {
 		if pager.Pages[i] != nil {
-			FlushPage(pager, i, PageSize)
+			FlushPage(pager, i)
 			pager.Pages[i] = nil
-		}
-	}
-
-	// Flush last not fulled page
-	var notFulledPageRowsNum uint32 = table.NumRows % RowsPerPage
-	if notFulledPageRowsNum > 0 {
-		var lastPageNum uint32 = numFulledPage
-		if pager.Pages[lastPageNum] != nil {
-			FlushPage(pager, lastPageNum, notFulledPageRowsNum*RowSize)
-			pager.Pages[lastPageNum] = nil
 		}
 	}
 
@@ -264,6 +271,10 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 			}
 
 			pager.Pages[pageNum] = page
+
+			if pageNum >= pager.NumPages {
+				pager.NumPages = pageNum + 1
+			}
 		}
 	}
 
@@ -272,20 +283,17 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 
 // CursorValue returned address of a cursor pointed to specific row
 func CursorValue(cursor *Cursor) []byte {
-	var pageNum uint32 = cursor.rowNum / RowsPerPage
-
+	var pageNum uint32 = cursor.pageNum
 	var page *Page = getPage(cursor.table.Pager, pageNum)
-	var rowOffset uint32 = cursor.rowNum % RowsPerPage
-	var byteOffset uint32 = rowOffset * RowSize
-	var offsetSlice []byte = page.Mem[byteOffset : byteOffset+RowSize]
-
-	return offsetSlice
+	return LeafNodeValue(page.Mem[:], cursor.cellNum)
 }
 
 // CursorNext next cursor
 func CursorNext(cursor *Cursor) {
-	cursor.rowNum++
-	if cursor.rowNum >= cursor.table.NumRows {
+	var pageNum uint32 = cursor.pageNum
+	var page *Page = getPage(cursor.table.Pager, pageNum)
+	cursor.cellNum++
+	if cursor.cellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		cursor.IsEndOfTable = true
 	}
 }

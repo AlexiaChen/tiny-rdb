@@ -1,5 +1,7 @@
 package backend
 
+import "unsafe"
+
 // Difference between B Tree and B+ Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
 
 // B+tree nodes with children are called “internal” nodes. Internal nodes and leaf nodes are structured differently:
@@ -29,6 +31,11 @@ const (
 // NodeType typdef B+tree node type
 type NodeType = int
 
+// const one page size is equal to node size
+const (
+	NodeSize = PageSize // 4k bytes
+)
+
 // Node Header Format, Nodes need to store some metadata in a header at the beginning of the page.
 // Every node will store what type of node it is, whether or not it is the root node, and a pointer to its parent(to allow finding a node’s siblings)
 const (
@@ -55,14 +62,14 @@ const (
 	LeafNodeValueSize      = RowSize
 	LeafNodeValueOffset    = LeafNodeKeyOffset + LeafNodeKeySize
 	LeafNodeCellSize       = LeafNodeKeySize + LeafNodeValueSize
-	LeafNodeCellsSpaceSize = PageSize - LeafNodeHeaderSize
+	LeafNodeCellsSpaceSize = NodeSize - LeafNodeHeaderSize
 	LeafNodeMaxCells       = LeafNodeCellsSpaceSize / LeafNodeCellSize
 )
 
 // Leaf node layout schema
 
 // #__byte 0__#__byte 1__#_________________byte 2-5_________________#_________________byte 6-9_________________#
-// byte 0: NodeType, byte 1: IsRootNode, byte 2-5:ParentNodePointer, byte 6-9: LeafNodeCellsNum
+// byte 0: NodeType(1 byte), byte 1: IsRootNode(1 byte), byte 2-5:ParentNodePointer(4 bytes), byte 6-9: LeafNodeCellsNum(4 bytes)
 // #_________________byte 10-13_________________#___________________________________________byte 14-305_____________________________________________________________#
 // byte 10-13: Key0(4 bytes), byte 14-306: Value0(292 BYTES)
 // ............
@@ -74,3 +81,34 @@ const (
 // byte 3562-3565: Key12(4 bytes), byte 3566-3857: Value12(292)
 // #_________________________________________________byte 3858-4095______________________________________________________#
 // byte 3858-4095: specific-byte(0x00) filled space (leave it empty to avoid splitting cells between nodes)
+
+// Accessing Leaf node, setter and getter for leaf node
+
+// InitializeLeafNode Initialize Leaf node
+func InitializeLeafNode(node []byte) {
+	var numCells *uint32 = LeafNodeNumCells(node)
+	*numCells = 0
+}
+
+// LeafNodeNumCells Get Number of cells in leaf node
+func LeafNodeNumCells(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[LeafNodeCellsNumOffset]))
+}
+
+// LeafNodeCell Get specific cell bytes array in Leaf node
+func LeafNodeCell(node []byte, cellNum uint32) []byte {
+	var offsetCell uint32 = LeafNodeHeaderSize + LeafNodeCellSize*cellNum
+	return node[offsetCell : offsetCell+LeafNodeCellSize]
+}
+
+// LeafNodeKey Get specific cell key in leaf node
+func LeafNodeKey(node []byte, cellNum uint32) *uint32 {
+	cellSlice := LeafNodeCell(node, cellNum)
+	return (*uint32)(unsafe.Pointer(&cellSlice[0]))
+}
+
+// LeafNodeValue Get specific cell value in leaf node
+func LeafNodeValue(node []byte, cellNum uint32) []byte {
+	cellSlice := LeafNodeCell(node, cellNum)
+	return cellSlice[LeafNodeKeySize:]
+}
