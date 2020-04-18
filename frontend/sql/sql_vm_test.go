@@ -230,10 +230,10 @@ func TestFileLength(t *testing.T) {
 	backend.CloseDB(table)
 
 	tableNew := backend.OpenDB(dbFile)
-	//RealFileLenght := (tableNew.NumRows/backend.RowsPerPage)*backend.PageSize + (table.NumRows%backend.RowsPerPage)*backend.RowSize
-	//if tableNew.Pager.FileLength != int64(RealFileLenght) {
-	//	t.Errorf("%v rows size must be %v, but it is %v", tableNew.NumRows, RealFileLenght, tableNew.Pager.FileLength)
-	//}
+	RealFileLength := backend.NodeSize
+	if tableNew.Pager.FileLength != int64(RealFileLength) {
+		t.Errorf("file size must be %v, but it is %v", backend.NodeSize, RealFileLength)
+	}
 
 	backend.CloseDB(tableNew)
 	os.Remove(dbFile)
