@@ -130,7 +130,9 @@ func RunStatement(table *backend.Table, statement *Statement) ExecuteResult {
 
 // RunInsert run insert statment
 func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
-	if table.NumRows >= backend.TableMaxRows {
+	var page *backend.Page = backend.GetPage(table.Pager, table.RootPageNum)
+	var numCells uint32 = *backend.LeafNodeNumCells(page.Mem[:])
+	if numCells >= backend.LeafNodeMaxCells {
 		return ExecuteTableFull
 	}
 
@@ -142,14 +144,7 @@ func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
 	table.Pager.FileLength = fileInf.Size()
 
 	var cursor *backend.Cursor = backend.CursorEnd(table)
-	rowSlotSlice := backend.CursorValue(cursor)
-	backend.SerializeRow(&statement.RowToInsert, &rowSlotSlice)
-	table.NumRows = table.NumRows + 1
-
-	var pageNum uint32 = table.NumRows / backend.RowsPerPage
-	if table.NumRows%backend.RowsPerPage == 0 {
-		backend.FlushPage(table.Pager, pageNum-1)
-	}
+	backend.InsertLeafNode(cursor, statement.RowToInsert.PrimaryID, &statement.RowToInsert)
 
 	return ExecuteSuccess
 }
@@ -162,7 +157,7 @@ func RunSelect(table *backend.Table, statement *Statement) ExecuteResult {
 		var readableRow backend.VisualRow
 
 		rowSlotSlice := backend.CursorValue(cursor)
-		backend.DeserializeRow(&rowSlotSlice, &row)
+		backend.DeserializeRow(rowSlotSlice, &row)
 
 		readableRow.PrimaryID = row.PrimaryID
 		readableRow.UserName = util.ToString(row.UserName[:])

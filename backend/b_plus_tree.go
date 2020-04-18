@@ -1,6 +1,11 @@
 package backend
 
-import "unsafe"
+import (
+	"fmt"
+	"os"
+	"tiny-rdb/util"
+	"unsafe"
+)
 
 // Difference between B Tree and B+ Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
 
@@ -111,4 +116,26 @@ func LeafNodeKey(node []byte, cellNum uint32) *uint32 {
 func LeafNodeValue(node []byte, cellNum uint32) []byte {
 	cellSlice := LeafNodeCell(node, cellNum)
 	return cellSlice[LeafNodeKeySize:]
+}
+
+// InsertLeafNode Inserting a key/value pair into a leaf node.
+// It will take a cursor as input to represent the position where the pair should be inserted.
+func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
+	var page *Page = GetPage(cursor.table.Pager, cursor.pageNum)
+	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
+	if numCells >= LeafNodeMaxCells {
+		fmt.Println("Need to implemented splitting node")
+		os.Exit(util.ExitFailure)
+	}
+
+	if cursor.cellNum < numCells {
+		// Move rest of cells spaces for making a cell-size space
+		for i := numCells; i > cursor.cellNum; i-- {
+			copy(LeafNodeCell(page.Mem[:], i), LeafNodeCell(page.Mem[:], i-1))
+		}
+	}
+
+	*LeafNodeKey(page.Mem[:], cursor.cellNum) = key
+	SerializeRow(value, LeafNodeValue(page.Mem[:], cursor.cellNum))
+	*LeafNodeNumCells(page.Mem[:]) = numCells + 1
 }

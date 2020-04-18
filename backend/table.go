@@ -75,7 +75,7 @@ func CursorBegin(table *Table) *Cursor {
 	cursor.pageNum = table.RootPageNum
 	cursor.cellNum = 0
 
-	var rootPage *Page = getPage(table.Pager, table.RootPageNum)
+	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
 	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
 
 	if numCells == 0 {
@@ -92,7 +92,7 @@ func CursorEnd(table *Table) *Cursor {
 	cursor.table = table
 	cursor.pageNum = table.RootPageNum
 
-	var rootPage *Page = getPage(table.Pager, table.RootPageNum)
+	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
 	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
 	cursor.cellNum = numCells
 	cursor.IsEndOfTable = true
@@ -134,15 +134,16 @@ func OpenDB(filename string) *Table {
 	var table *Table = new(Table)
 	var pager *Pager = openPager(filename)
 	table.RootPageNum = 0
+	table.Pager = pager
 
 	if pager.NumPages == 0 {
-		var page *Page = getPage(pager, 0)
+		var page *Page = GetPage(pager, 0)
 		InitializeLeafNode(page.Mem[:])
 	}
 	return table
 }
 
-// FlushPage Flush a page from page num in specific size
+// FlushPage Flush a page from page num
 func FlushPage(pager *Pager, pageNum uint32) {
 	if pager.Pages[pageNum] == nil {
 		fmt.Printf("Error: Flush null page: %v\n", pageNum)
@@ -190,42 +191,43 @@ func CloseDB(table *Table) {
 }
 
 // SerializeRow Serialize Row
-func SerializeRow(src *Row, dst *[]byte) int {
+func SerializeRow(src *Row, dst []byte) int {
 	var copied int = 0
 	unsafeID := unsafe.Pointer(&src.PrimaryID)
 	ID := (*[PrimaryIDSize]byte)(unsafeID)
-	copied = copied + copy((*dst)[IDOffSet:IDOffSet+PrimaryIDSize], (*ID)[0:])
+	copied = copied + copy(dst[IDOffSet:IDOffSet+PrimaryIDSize], (*ID)[0:])
 
 	unsafeUserName := unsafe.Pointer(&src.UserName)
 	UserName := (*[UserNameSize]byte)(unsafeUserName)
-	copied = copied + copy((*dst)[UserNameOffSet:UserNameOffSet+UserNameSize], (*UserName)[0:])
+	copied = copied + copy(dst[UserNameOffSet:UserNameOffSet+UserNameSize], (*UserName)[0:])
 
 	unsafeEmail := unsafe.Pointer(&src.Email)
 	Email := (*[EmailSize]byte)(unsafeEmail)
-	copied = copied + copy((*dst)[EmailOffSet:EmailOffSet+EmailSize], (*Email)[0:])
+	copied = copied + copy(dst[EmailOffSet:EmailOffSet+EmailSize], (*Email)[0:])
 
 	return copied
 }
 
 // DeserializeRow Deserialize row
-func DeserializeRow(src *[]byte, dst *Row) int {
+func DeserializeRow(src []byte, dst *Row) int {
 	var copied int = 0
 	unsafeID := unsafe.Pointer(&dst.PrimaryID)
 	ID := (*[PrimaryIDSize]byte)(unsafeID)
-	copied = copied + copy((*ID)[0:], (*src)[IDOffSet:IDOffSet+PrimaryIDSize])
+	copied = copied + copy((*ID)[0:], src[IDOffSet:IDOffSet+PrimaryIDSize])
 
 	unsafeUserName := unsafe.Pointer(&dst.UserName)
 	UserName := (*[UserNameSize]byte)(unsafeUserName)
-	copied = copied + copy((*UserName)[0:], (*src)[UserNameOffSet:UserNameOffSet+UserNameSize])
+	copied = copied + copy((*UserName)[0:], src[UserNameOffSet:UserNameOffSet+UserNameSize])
 
 	unsafeEmail := unsafe.Pointer(&dst.Email)
 	Email := (*[EmailSize]byte)(unsafeEmail)
-	copied = copied + copy((*Email)[0:], (*src)[EmailOffSet:EmailOffSet+EmailSize])
+	copied = copied + copy((*Email)[0:], src[EmailOffSet:EmailOffSet+EmailSize])
 
 	return copied
 }
 
-func getPage(pager *Pager, pageNum uint32) *Page {
+// GetPage Get the page that pageNum specific
+func GetPage(pager *Pager, pageNum uint32) *Page {
 	if pageNum > TableMaxPages {
 		fmt.Printf("page number out of bound: %v\n", pageNum)
 		os.Exit(util.ExitFailure)
@@ -284,14 +286,14 @@ func getPage(pager *Pager, pageNum uint32) *Page {
 // CursorValue returned address of a cursor pointed to specific row
 func CursorValue(cursor *Cursor) []byte {
 	var pageNum uint32 = cursor.pageNum
-	var page *Page = getPage(cursor.table.Pager, pageNum)
+	var page *Page = GetPage(cursor.table.Pager, pageNum)
 	return LeafNodeValue(page.Mem[:], cursor.cellNum)
 }
 
 // CursorNext next cursor
 func CursorNext(cursor *Cursor) {
 	var pageNum uint32 = cursor.pageNum
-	var page *Page = getPage(cursor.table.Pager, pageNum)
+	var page *Page = GetPage(cursor.table.Pager, pageNum)
 	cursor.cellNum++
 	if cursor.cellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		cursor.IsEndOfTable = true
