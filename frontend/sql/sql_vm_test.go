@@ -26,6 +26,13 @@ func TestRunRawCommand(t *testing.T) {
 		t.Errorf("Command is not success command")
 	}
 
+	inputBuffer.Buffer = "#btree"
+	inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+	if RunRawCommand(inputBuffer, table) != RawCommandSuccess {
+		t.Errorf("Command is not success command")
+	}
+
 	backend.CloseDB(table)
 	os.Remove(dbFile)
 

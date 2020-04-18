@@ -139,3 +139,13 @@ func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	SerializeRow(value, LeafNodeValue(page.Mem[:], cursor.cellNum))
 	*LeafNodeNumCells(page.Mem[:]) = numCells + 1
 }
+
+// PrintLeafNode Print detailed info from leaf node binary
+func PrintLeafNode(node []byte) uint32 {
+	var numCells uint32 = *LeafNodeNumCells(node)
+	fmt.Printf("Leaf num of cells: %v\n", numCells)
+	for i := uint32(0); i < numCells; i++ {
+		fmt.Printf("(cell num: %v, key: %v)\n", i, *LeafNodeKey(node, i))
+	}
+	return numCells
+}
