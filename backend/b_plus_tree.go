@@ -121,22 +121,22 @@ func LeafNodeValue(node []byte, cellNum uint32) []byte {
 // InsertLeafNode Inserting a key/value pair into a leaf node.
 // It will take a cursor as input to represent the position where the pair should be inserted.
 func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
-	var page *Page = GetPage(cursor.table.Pager, cursor.pageNum)
+	var page *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
 	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
 	if numCells >= LeafNodeMaxCells {
 		fmt.Println("Need to implemented splitting node")
 		os.Exit(util.ExitFailure)
 	}
 
-	if cursor.cellNum < numCells {
+	if cursor.CellNum < numCells {
 		// Move rest of cells spaces for making a cell-size space
-		for i := numCells; i > cursor.cellNum; i-- {
+		for i := numCells; i > cursor.CellNum; i-- {
 			copy(LeafNodeCell(page.Mem[:], i), LeafNodeCell(page.Mem[:], i-1))
 		}
 	}
 
-	*LeafNodeKey(page.Mem[:], cursor.cellNum) = key
-	SerializeRow(value, LeafNodeValue(page.Mem[:], cursor.cellNum))
+	*LeafNodeKey(page.Mem[:], cursor.CellNum) = key
+	SerializeRow(value, LeafNodeValue(page.Mem[:], cursor.CellNum))
 	*LeafNodeNumCells(page.Mem[:]) = numCells + 1
 }
 

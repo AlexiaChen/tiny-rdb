@@ -62,18 +62,18 @@ type Tables struct {
 
 // Cursor a cursor point to a row of the table, likes a iterator of other language for containor
 type Cursor struct {
-	table        *Table
-	pageNum      uint32
-	cellNum      uint32
+	TablePtr     *Table
+	PageNum      uint32
+	CellNum      uint32
 	IsEndOfTable bool
 }
 
 // CursorBegin create a cursor point to begin of the table
 func CursorBegin(table *Table) *Cursor {
 	var cursor *Cursor = new(Cursor)
-	cursor.table = table
-	cursor.pageNum = table.RootPageNum
-	cursor.cellNum = 0
+	cursor.TablePtr = table
+	cursor.PageNum = table.RootPageNum
+	cursor.CellNum = 0
 
 	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
 	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
@@ -89,12 +89,12 @@ func CursorBegin(table *Table) *Cursor {
 // CursorEnd create a cursor point to end of the table
 func CursorEnd(table *Table) *Cursor {
 	var cursor *Cursor = new(Cursor)
-	cursor.table = table
-	cursor.pageNum = table.RootPageNum
+	cursor.TablePtr = table
+	cursor.PageNum = table.RootPageNum
 
 	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
 	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
-	cursor.cellNum = numCells
+	cursor.CellNum = numCells
 	cursor.IsEndOfTable = true
 	return cursor
 }
@@ -285,17 +285,17 @@ func GetPage(pager *Pager, pageNum uint32) *Page {
 
 // CursorValue returned address of a cursor pointed to specific row
 func CursorValue(cursor *Cursor) []byte {
-	var pageNum uint32 = cursor.pageNum
-	var page *Page = GetPage(cursor.table.Pager, pageNum)
-	return LeafNodeValue(page.Mem[:], cursor.cellNum)
+	var pageNum uint32 = cursor.PageNum
+	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
+	return LeafNodeValue(page.Mem[:], cursor.CellNum)
 }
 
 // CursorNext next cursor
 func CursorNext(cursor *Cursor) {
-	var pageNum uint32 = cursor.pageNum
-	var page *Page = GetPage(cursor.table.Pager, pageNum)
-	cursor.cellNum++
-	if cursor.cellNum >= *LeafNodeNumCells(page.Mem[:]) {
+	var pageNum uint32 = cursor.PageNum
+	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
+	cursor.CellNum++
+	if cursor.CellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		cursor.IsEndOfTable = true
 	}
 }

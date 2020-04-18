@@ -172,9 +172,10 @@ func TestBunchOfInsert(t *testing.T) {
 		}
 	}
 
-	//if table.NumRows != InsertNum {
-	//	t.Errorf("Row Num must be %v, but it is %v", InsertNum, table.NumRows)
-	//}
+	var endCursor *backend.Cursor = backend.CursorEnd(table)
+	if endCursor.CellNum != InsertNum {
+		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.CellNum)
+	}
 
 	inputBuffer.Buffer = "select"
 	inputBuffer.BufLen = len(inputBuffer.Buffer)
@@ -194,9 +195,10 @@ func TestBunchOfInsert(t *testing.T) {
 
 	tableNew := backend.OpenDB(dbFile)
 
-	//if tableNew.NumRows != InsertNum {
-	//	t.Errorf("Row Num must be %v, but it is %v", InsertNum, tableNew.NumRows)
-	//}
+	endCursor = backend.CursorEnd(tableNew)
+	if endCursor.CellNum != InsertNum {
+		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.CellNum)
+	}
 
 	backend.CloseDB(tableNew)
 	os.Remove(dbFile)

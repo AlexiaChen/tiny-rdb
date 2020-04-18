@@ -10,9 +10,10 @@ import (
 func TestTable(t *testing.T) {
 	fileDB := "./Table.db"
 	table := OpenDB(fileDB)
-	//if table.NumRows != 0 {
-	//	t.Errorf("Num rows must be 0")
-	//}
+
+	if table.RootPageNum != 0 {
+		t.Errorf("Root Page Num must be 0")
+	}
 
 	if len(table.Pager.Pages) != TableMaxPages {
 		t.Errorf("Table Max Pages is error")
