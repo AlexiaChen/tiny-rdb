@@ -21,13 +21,13 @@ func TestLeafNode(t *testing.T) {
 
 	if *numCells != 12 {
 		t.Errorf("numCells after fail: %v", *numCells)
-	} 
-	
+	}
+
 	for i := uint32(0); i < *numCells; i++ {
 		*LeafNodeKey(leafNodeBytes, i) = i
 		value := LeafNodeValue(leafNodeBytes, i)
 		numStr := strconv.FormatUint(uint64(i), 10)
-		copy(value[:], "value" + numStr)
+		copy(value[:], "value"+numStr)
 	}
 
 	for i := uint32(0); i < *numCells; i++ {
@@ -36,9 +36,27 @@ func TestLeafNode(t *testing.T) {
 		}
 		value := LeafNodeValue(leafNodeBytes, i)
 		numStr := strconv.FormatUint(uint64(i), 10)
-		if util.ToString(value) != "value" + numStr {
+		if util.ToString(value) != "value"+numStr {
 			t.Errorf("value is wrong: %v", util.ToString(value))
 		}
 	}
 }
- 
+
+func TestPrintBPlusTree(t *testing.T) {
+	leafNodeBytes := make([]byte, NodeSize)
+	InitializeLeafNode(leafNodeBytes)
+
+	*LeafNodeNumCells(leafNodeBytes) = 12
+
+	for i := uint32(0); i < *LeafNodeNumCells(leafNodeBytes); i++ {
+		*LeafNodeKey(leafNodeBytes, i) = i
+		value := LeafNodeValue(leafNodeBytes, i)
+		numStr := strconv.FormatUint(uint64(i), 10)
+		copy(value[:], "value"+numStr)
+	}
+
+	if PrintLeafNode(leafNodeBytes) != *LeafNodeNumCells(leafNodeBytes) {
+		t.Errorf("Print Leaf node num cells is Wrong")
+	}
+
+}
