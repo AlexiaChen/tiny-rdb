@@ -32,4 +32,4 @@ jobs:
         fi
 
     - name: Build and Test
-      run: go build -v . && ./run-all-tests.sh
+      run: go build -v . && go test -v -cover ./...
