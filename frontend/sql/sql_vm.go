@@ -28,9 +28,10 @@ const (
 	CreateStatement = iota
 
 	// Execute Result
-	ExecuteSuccess   = iota
-	ExecuteTableFull = iota
-	ExecuteFail      = iota
+	ExecuteSuccess      = iota
+	ExecuteTableFull    = iota
+	ExecuteDuplicateKey = iota
+	ExecuteFail         = iota
 )
 
 // StatementType type of statement
@@ -149,7 +150,16 @@ func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
 	}
 	table.Pager.FileLength = fileInf.Size()
 
-	var cursor *backend.Cursor = backend.CursorEnd(table)
+	var key uint32 = statement.RowToInsert.PrimaryID
+	var cursor *backend.Cursor = backend.Find(table, key)
+
+	if cursor.CellNum < numCells {
+		var keyFinded uint32 = *backend.LeafNodeKey(page.Mem[:], cursor.CellNum)
+		if key == keyFinded {
+			return ExecuteDuplicateKey
+		}
+	}
+
 	backend.InsertLeafNode(cursor, statement.RowToInsert.PrimaryID, &statement.RowToInsert)
 
 	return ExecuteSuccess

@@ -60,6 +60,8 @@ func main() {
 		switch sql.RunStatement(table, &statement) {
 		case sql.ExecuteSuccess:
 			fmt.Println("Executed statement.")
+		case sql.ExecuteDuplicateKey:
+			fmt.Println("Error: Duplicate Key")
 		case sql.ExecuteTableFull:
 			fmt.Println("Error: Table Full")
 		case sql.ExecuteFail:
