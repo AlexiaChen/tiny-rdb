@@ -204,6 +204,104 @@ func TestBunchOfInsert(t *testing.T) {
 	os.Remove(dbFile)
 }
 
+func TestDuplicateKey(t *testing.T) {
+	dbFile := "./DuplicateKey.db"
+	table := backend.OpenDB(dbFile)
+	inputBuffer := cli.NewInputBuffer()
+	InsertNum := uint32(10)
+
+	for i := uint32(0); i < InsertNum; i++ {
+
+		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
+		inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+		var statement Statement
+		result := PrepareStatement(inputBuffer, &statement)
+
+		if result != PrepareSuccess {
+			t.Errorf("result must be success: %v", result)
+		}
+
+		result = RunStatement(table, &statement)
+		if result != ExecuteSuccess {
+			t.Errorf("result must be execute success: %v", result)
+		}
+	}
+
+	backend.CloseDB(table)
+
+	tableNew := backend.OpenDB(dbFile)
+
+	for i := uint32(0); i < InsertNum; i++ {
+
+		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
+		inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+		var statement Statement
+		result := PrepareStatement(inputBuffer, &statement)
+
+		if result != PrepareSuccess {
+			t.Errorf("result must be success: %v", result)
+		}
+
+		result = RunStatement(tableNew, &statement)
+		if result != ExecuteDuplicateKey {
+			t.Errorf("result must be execute Duplicate Key: %v", result)
+		}
+	}
+
+	backend.CloseDB(tableNew)
+	os.Remove(dbFile)
+
+}
+
+func TestOrderedKey(t *testing.T) {
+	dbFile := "./OrderedKey.db"
+	table := backend.OpenDB(dbFile)
+	inputBuffer := cli.NewInputBuffer()
+	InsertNum := uint32(10)
+
+	for i := InsertNum; i > 0; i-- {
+
+		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
+		inputBuffer.BufLen = len(inputBuffer.Buffer)
+
+		var statement Statement
+		result := PrepareStatement(inputBuffer, &statement)
+
+		if result != PrepareSuccess {
+			t.Errorf("result must be success: %v", result)
+		}
+
+		result = RunStatement(table, &statement)
+		if result != ExecuteSuccess {
+			t.Errorf("result must be execute success: %v", result)
+		}
+	}
+
+	var i uint32 = 1
+	var cursor *backend.Cursor = backend.CursorBegin(table)
+	for !cursor.IsEndOfTable {
+		var row backend.Row
+		var readableRow backend.VisualRow
+
+		rowSlotSlice := backend.CursorValue(cursor)
+		backend.DeserializeRow(rowSlotSlice, &row)
+
+		readableRow.PrimaryID = row.PrimaryID
+		readableRow.UserName = util.ToString(row.UserName[:])
+		readableRow.Email = util.ToString(row.Email[:])
+
+		if readableRow.PrimaryID != i {
+			t.Errorf("Primary key is must be %v", i)
+		}
+
+		i++
+		backend.CursorNext(cursor)
+	}
+
+}
+
 func TestFileLength(t *testing.T) {
 	dbFile := "./FileLen.db"
 	table := backend.OpenDB(dbFile)

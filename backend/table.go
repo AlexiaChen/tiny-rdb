@@ -99,6 +99,20 @@ func CursorEnd(table *Table) *Cursor {
 	return cursor
 }
 
+// Find Search the tree for a given key
+// If the key is not present, return the position where it should be inserted
+func Find(table *Table, key uint32) *Cursor {
+	var rootPageNum uint32 = table.RootPageNum
+	var rootPage *Page = GetPage(table.Pager, rootPageNum)
+	if GetNodeType(rootPage.Mem[:]) == TypeLeafNode {
+		return FindLeafNode(table, rootPageNum, key)
+	} else {
+		// TODO: implement search internal node
+		os.Exit(util.ExitFailure)
+		return nil
+	}
+}
+
 func openPager(filename string) *Pager {
 	filePtr, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {

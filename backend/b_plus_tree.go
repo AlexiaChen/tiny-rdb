@@ -29,12 +29,12 @@ import (
 
 // B+tree node type, Leaf nodes and internal nodes have different layouts.
 const (
-	InternalNode = iota
-	LeafNode     = iota
+	TypeInternalNode = iota
+	TypeLeafNode     = iota
 )
 
 // NodeType typdef B+tree node type
-type NodeType = int
+type NodeType = uint8
 
 // const one page size is equal to node size
 const (
@@ -91,8 +91,21 @@ const (
 
 // InitializeLeafNode Initialize Leaf node
 func InitializeLeafNode(node []byte) {
+	SetNodeType(node, TypeLeafNode)
 	var numCells *uint32 = LeafNodeNumCells(node)
 	*numCells = 0
+}
+
+// SetNodeType Set the type of node
+func SetNodeType(node []byte, nodeType NodeType) {
+	typet := (*NodeType)(unsafe.Pointer(&node[NodeTypeOffset]))
+	*typet = nodeType
+}
+
+// GetNodeType Get the type of node
+func GetNodeType(node []byte) NodeType {
+	typet := (*NodeType)(unsafe.Pointer(&node[NodeTypeOffset]))
+	return *typet
 }
 
 // LeafNodeNumCells Get Number of cells in leaf node
@@ -138,6 +151,37 @@ func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	*LeafNodeKey(page.Mem[:], cursor.CellNum) = key
 	SerializeRow(value, LeafNodeValue(page.Mem[:], cursor.CellNum))
 	*LeafNodeNumCells(page.Mem[:]) = numCells + 1
+}
+
+// FindLeafNode Search the leaf node with binary search.
+func FindLeafNode(table *Table, pageNum uint32, key uint32) *Cursor {
+	var page *Page = GetPage(table.Pager, pageNum)
+	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
+
+	var cursor *Cursor = new(Cursor)
+	cursor.TablePtr = table
+	cursor.PageNum = pageNum
+
+	// Binary Search
+	var minIndex uint32 = 0
+	var maxIndex uint32 = numCells
+	for maxIndex != minIndex {
+		var index uint32 = (minIndex + maxIndex) / 2
+		var indexKey uint32 = *LeafNodeKey(page.Mem[:], index)
+		if indexKey == key {
+			cursor.CellNum = index
+			return cursor
+		}
+
+		if key < indexKey {
+			maxIndex = index
+		} else {
+			minIndex = index + 1
+		}
+	}
+
+	cursor.CellNum = minIndex
+	return cursor
 }
 
 // PrintLeafNode Print detailed info from leaf node binary
