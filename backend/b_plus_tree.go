@@ -2,8 +2,6 @@ package backend
 
 import (
 	"fmt"
-	"os"
-	"tiny-rdb/util"
 	"unsafe"
 )
 
@@ -131,14 +129,29 @@ func LeafNodeValue(node []byte, cellNum uint32) []byte {
 	return cellSlice[LeafNodeKeySize:]
 }
 
+// SplitAndInsertLeafNode split a leaf node in two nodes. And after that, we need to create an internal node to act as a parent node for the two leaf nodes.
+// If there is no space on the leaf node, we would split the existing entries residing there and the new one (being inserted) into two equal halves:
+// lower and upper halves. (Keys on the upper half are strictly greater than those on the lower half.) We allocate a new leaf node, and move the upper half into the new node.
+func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
+	// Create a new node and move half the cells over.
+	// Insert the new value in one of the two nodes.
+	// Update parent or create a new parent.
+	// var oldPage *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
+	var newPageNum uint32 = GetUnallocatedPageNum(cursor.TablePtr.Pager)
+	var newPage *Page = GetPage(cursor.TablePtr.Pager, newPageNum)
+	InitializeLeafNode(newPage.Mem[:])
+
+}
+
 // InsertLeafNode Inserting a key/value pair into a leaf node.
 // It will take a cursor as input to represent the position where the pair should be inserted.
 func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	var page *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
 	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
 	if numCells >= LeafNodeMaxCells {
-		fmt.Println("Need to implemented splitting node")
-		os.Exit(util.ExitFailure)
+		// Leaf node full, need to split
+		SplitAndInsertLeafNode(cursor, key, value)
+		return
 	}
 
 	if cursor.CellNum < numCells {

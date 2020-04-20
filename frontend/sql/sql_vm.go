@@ -139,9 +139,6 @@ func RunStatement(table *backend.Table, statement *Statement) ExecuteResult {
 func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
 	var page *backend.Page = backend.GetPage(table.Pager, table.RootPageNum)
 	var numCells uint32 = *backend.LeafNodeNumCells(page.Mem[:])
-	if numCells >= backend.LeafNodeMaxCells {
-		return ExecuteTableFull
-	}
 
 	fileInf, err := table.Pager.FilePtr.Stat()
 	if err != nil {
