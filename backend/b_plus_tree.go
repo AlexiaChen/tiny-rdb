@@ -149,7 +149,7 @@ func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	var page *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
 	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
 	if numCells >= LeafNodeMaxCells {
-		// Leaf node full, need to split
+		// Leaf node full, need to split into two leaf node
 		SplitAndInsertLeafNode(cursor, key, value)
 		return
 	}
