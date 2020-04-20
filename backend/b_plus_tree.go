@@ -166,7 +166,7 @@ func InsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	*LeafNodeNumCells(page.Mem[:]) = numCells + 1
 }
 
-// FindLeafNode Search the leaf node with binary search.
+// FindLeafNode Search the cursor in the leaf node with binary search.
 func FindLeafNode(table *Table, pageNum uint32, key uint32) *Cursor {
 	var page *Page = GetPage(table.Pager, pageNum)
 	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
