@@ -2,6 +2,8 @@ package backend
 
 import (
 	"fmt"
+	"os"
+	"tiny-rdb/util"
 	"unsafe"
 )
 
@@ -112,6 +114,16 @@ func GetNodeType(node []byte) NodeType {
 	return *typet
 }
 
+// IsRootNode Check if it is root node
+func IsRootNode(node []byte) bool {
+	var IsRootNodeField uint8 = *(*uint8)(unsafe.Pointer(&node[IsRootNodeOffset]))
+	if IsRootNodeField == 1 {
+		return true
+	} else {
+		return false
+	}
+}
+
 // LeafNodeNumCells Get Number of cells in leaf node
 func LeafNodeNumCells(node []byte) *uint32 {
 	return (*uint32)(unsafe.Pointer(&node[LeafNodeCellsNumOffset]))
@@ -173,6 +185,14 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	// update leaf and right nodes num cells
 	*LeafNodeNumCells(oldPage.Mem[:]) = LeafNodeLeftSplitCount
 	*LeafNodeNumCells(newPage.Mem[:]) = LeafNodeRightSplitCount
+
+	if IsRootNode(oldPage.Mem[:]) {
+		// TODO: Create new root node
+	} else {
+		// TODO: Need to implement updating parent after split
+		os.Exit(util.ExitFailure)
+	}
+
 }
 
 // InsertLeafNode Inserting a key/value pair into a leaf node.
