@@ -34,6 +34,12 @@ const (
 // NodeType typdef B+tree node type
 type NodeType = uint8
 
+// If a leaf node can hold Max cells, then during a split we need to distribute Max+1 cells between two nodes (Max original cells plus one new one)
+const (
+	LeafNodeRightSplitCount = (LeafNodeMaxCells + 1) / 2
+	LeafNodeLeftSplitCount  = (LeafNodeMaxCells + 1) - LeafNodeRightSplitCount //  choosing the left node to get one more cell if Max+1 is odd.
+)
+
 // const one page size is equal to node size
 const (
 	NodeSize = PageSize // 4k bytes
@@ -136,11 +142,37 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	// Create a new node and move half the cells over.
 	// Insert the new value in one of the two nodes.
 	// Update parent or create a new parent.
-	// var oldPage *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
+	var oldPage *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
 	var newPageNum uint32 = GetUnallocatedPageNum(cursor.TablePtr.Pager)
 	var newPage *Page = GetPage(cursor.TablePtr.Pager, newPageNum)
 	InitializeLeafNode(newPage.Mem[:])
 
+	// All existing keys plus new key should be divided
+	// evenly between old (left) and new (right) nodes.
+	// Starting from the right, move each key to correct position.
+	for i := uint32(LeafNodeMaxCells); i >= 0; i-- {
+		var destinationPage *Page = nil
+		if i >= LeafNodeLeftSplitCount {
+			destinationPage = newPage
+		} else {
+			destinationPage = oldPage
+		}
+
+		var indexWithinNode uint32 = i % LeafNodeLeftSplitCount
+		var destinationCell []byte = LeafNodeCell(destinationPage.Mem[:], indexWithinNode)
+		if i == cursor.CellNum {
+			SerializeRow(value, LeafNodeValue(destinationPage.Mem[:], indexWithinNode))
+			*LeafNodeKey(destinationPage.Mem[:], indexWithinNode) = key
+		} else if i > cursor.CellNum {
+			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], i-1))
+		} else {
+			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], i))
+		}
+	}
+
+	// update leaf and right nodes num cells
+	*LeafNodeNumCells(oldPage.Mem[:]) = LeafNodeLeftSplitCount
+	*LeafNodeNumCells(newPage.Mem[:]) = LeafNodeRightSplitCount
 }
 
 // InsertLeafNode Inserting a key/value pair into a leaf node.
