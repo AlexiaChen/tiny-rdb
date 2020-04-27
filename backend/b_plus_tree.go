@@ -147,8 +147,8 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	var newPage *Page = GetPage(cursor.TablePtr.Pager, newPageNum)
 	InitializeLeafNode(newPage.Mem[:])
 
-	// All existing keys plus new key should be divided
-	// evenly between old (left) and new (right) nodes.
+	// All existing keys and new key should be divided
+	// evenly between old (left) and new (right) nodes to rebalance
 	// Starting from the right, move each key to correct position.
 	for i := uint32(LeafNodeMaxCells); i >= 0; i-- {
 		var destinationPage *Page = nil
