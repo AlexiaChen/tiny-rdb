@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// Difference between B Tree and B+ Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
+// Difference between B-Tree and B+Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
 
 // B-tree nodes with children are called “internal” nodes. Internal nodes and leaf nodes are structured differently:
 
