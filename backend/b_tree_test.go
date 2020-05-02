@@ -42,7 +42,7 @@ func TestLeafNode(t *testing.T) {
 	}
 }
 
-func TestPrintBPlusTree(t *testing.T) {
+func TestPrintBTree(t *testing.T) {
 	leafNodeBytes := make([]byte, NodeSize)
 	InitializeLeafNode(leafNodeBytes)
 

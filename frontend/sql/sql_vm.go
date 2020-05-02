@@ -63,7 +63,7 @@ func RunRawCommand(inputBuffer *cli.InputBuffer, table *backend.Table) RawComman
 		return RawCommandSuccess
 	}
 	if inputBuffer.Buffer == "#btree" {
-		fmt.Println("Visual B+Tree:")
+		fmt.Println("Visual B-Tree:")
 		page := backend.GetPage(table.Pager, table.RootPageNum)
 		backend.PrintLeafNode(page.Mem[:])
 		return RawCommandSuccess

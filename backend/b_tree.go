@@ -9,7 +9,7 @@ import (
 
 // Difference between B Tree and B+ Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
 
-// B+tree nodes with children are called “internal” nodes. Internal nodes and leaf nodes are structured differently:
+// B-tree nodes with children are called “internal” nodes. Internal nodes and leaf nodes are structured differently:
 
 // For an order-m tree… 	Internal Node 	                   Leaf Node
 // Stores 	              keys and pointers to children 	keys and values
@@ -27,13 +27,13 @@ import (
 // Each node will correspond to one page. The root node will exist in page 0.
 // Child pointers will simply be the page number that contains the child node.
 
-// B+tree node type, Leaf nodes and internal nodes have different layouts.
+// B-tree node type, Leaf nodes and internal nodes have different layouts.
 const (
 	TypeInternalNode = iota
 	TypeLeafNode     = iota
 )
 
-// NodeType typdef B+tree node type
+// NodeType typdef B-tree node type
 type NodeType = uint8
 
 // If a leaf node can hold Max cells, then during a split we need to distribute Max+1 cells between two nodes (Max original cells plus one new one)
@@ -47,7 +47,8 @@ const (
 	NodeSize = PageSize // 4k bytes
 )
 
-// Node Header Format, Nodes need to store some metadata in a header at the beginning of the page.
+// Common Node Header Format
+// Nodes need to store some metadata in a header at the beginning of the page.
 // Every node will store what type of node it is, whether or not it is the root node, and a pointer to its parent(to allow finding a node’s siblings)
 const (
 	NodeTypeSize            = 1 // 1 byte
@@ -57,6 +58,25 @@ const (
 	ParentNodePointerSize   = 4 // 4 bytes
 	ParentNodePointerOffset = IsRootNodeOffset + IsRootNodeSize
 	NodeHeaderSize          = NodeTypeSize + IsRootNodeSize + ParentNodePointerSize
+)
+
+// Internal Node Header Format
+// It starts with the common header, then the number of keys it contains, then the page number of its rightmost child.
+// Internal nodes always have one more child pointer than they have keys. That extra child pointer is stored in the header.
+const (
+	InternalNodeNumKeysSize      = 4 // 4 bytes
+	InternalNodeNumKeysOffset    = NodeHeaderSize
+	InternalNodeRightChildSize   = 4 // 4 bytes
+	InternalNodeRightChildOffset = InternalNodeNumKeysOffset + InternalNodeNumKeysSize
+	InternalNodeHeaderSize       = NodeHeaderSize + InternalNodeNumKeysSize + InternalNodeRightChildSize
+)
+
+// Interal Node Body Format
+// The body is an array of cells where each cell contains a child pointer and a key. Every key should be the maximum key contained in the child to its left.
+const (
+	InternalNodeKeySize  = 4 // 4 bytes
+	InteralNodeChildSize = 4 // 4 bytes
+	InteralNodeCellSize  = InternalNodeKeySize + InteralNodeChildSize
 )
 
 // Leaf Node Header Format  leaf nodes need to store how many “cells” they contain. A cell is a key/value pair. Value is actual row data
@@ -85,13 +105,50 @@ const (
 // byte 10-13: Key0(4 bytes), byte 14-306: Value0(292 BYTES)
 // ............
 // ............
-// Cell format layout repeat until LeafNodeCellsNum like above
+// Leaf node cell format layout repeat until LeafNodeCellsNum like above
 // ............
 // ............
 // #_________________byte 3562-3565_________________#___________________________________________byte 3566-3857_____________________________________________________________#
 // byte 3562-3565: Key12(4 bytes), byte 3566-3857: Value12(292)
 // #_________________________________________________byte 3858-4095______________________________________________________#
 // byte 3858-4095: specific-byte(0x00) filled space (leave it empty to avoid splitting cells between nodes)
+
+// #########################################################################################################################################################################
+
+// Internal node layout schema
+
+// #__byte 0__#__byte 1__#_________________byte 2-5_________________#_________________byte 6-9_________________#_________________byte 10-13_________________#
+// byte 0: NodeType(1 byte), byte 1: IsRootNode(1 byte), byte 2-5:ParentNodePointer(4 bytes), byte 6-9: InteranlNodeKeysNum(4 bytes), byte 10-13: RightChildPointer(4 bytes)
+// #_________________byte 14-17_________________#_________________byte 18-21_________________#
+// byte 14-17: ChildPointer0(4 bytes), byte 18-21: Key0(4 bytes)
+// #_________________byte 22-25_________________#_________________byte 26-29_________________#
+// byte 14-17: ChildPointer1(4 bytes), byte 18-21: Key1(4 bytes)
+// ............
+// ............
+// Internal node cell format layout repeat until InteranlNodeKeysNum like above
+// ............
+// ............
+// #_________________byte 4086-4089_________________#_________________byte 4090-4093_________________#
+// byte 4086-4089: ChildPointer509(4 bytes), byte 4090-4093: Key509(4 bytes)
+// #_________________________________________________byte 4094-4095______________________________________________________#
+// byte 4094-4095: specific-byte(0x00) filled space (2 bytes)
+
+// Notice our huge branching factor. Because each child pointer / key pair is so small
+// it can fit 510 keys and 511 child pointers in each internal node.
+// That means it never have to traverse many layers of the tree to find a given key.
+
+// Internal node layers             max of leaf nodes        size of all leaf nodes
+//       0                               511^0=1                      4kB
+//       1                               511^1=511                 511 * 4k = 2MB
+//       2                               511^2=261121              1020MB = 1GB
+//       3                               511^3=133432831           510GB
+//       N                               511^N                     (511)^N * 4kB
+
+// In actuality, It can’t store a full 4 KB of data per leaf node due to the overhead of the header, keys, and wasted space.
+// But it can search through something like 510 GB of data with 3-level B-tree by loading only 4 pages(file seeks is 4 times) from disk.
+// This is why the B-Tree is a useful data structure for databases, It reduce the number of random I/O from read aspect.
+
+// Accessing Internal node, setter and getter for internal node
 
 // Accessing Leaf node, setter and getter for leaf node
 
@@ -114,13 +171,46 @@ func GetNodeType(node []byte) NodeType {
 	return *typet
 }
 
+// CreateNewRootNode Take the right child node as input and allocates a new page to store the left child.
+func CreateNewRootNode(table *Table, rightNodePageNum uint32) {
+	// Handle splitting the root.
+	// Old root copied to new page, becomes left child.
+	// Address of right child passed in.
+	// Re-initialize root page to contain the new root node.
+	// New root node points to two children.
+	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
+	//var rightPage *Page = GetPage(table.Pager, rightNodePageNum)
+	var leftNodePageNum uint32 = GetUnallocatedPageNum(table.Pager)
+	var leftPage *Page = GetPage(table.Pager, leftNodePageNum)
+
+	// The old root page is copied to the left node so we can reuse the root page
+	// Left child has data copied from old root
+	if copy(leftPage.Mem[:], rootPage.Mem[:]) != PageSize {
+		os.Exit(util.ExitFailure)
+	}
+	SetRootNode(leftPage.Mem[:], false)
+
+	// Finally we initialize the root page as a new internal node with two children.
+	// Root node is a new internal node with one key and two children
+	// TODO
+}
+
 // IsRootNode Check if it is root node
 func IsRootNode(node []byte) bool {
 	var IsRootNodeField uint8 = *(*uint8)(unsafe.Pointer(&node[IsRootNodeOffset]))
 	if IsRootNodeField == 1 {
 		return true
+	}
+	return false
+}
+
+// SetRootNode Set the node to root node type
+func SetRootNode(node []byte, isRoot bool) {
+	var IsRootNodeField *uint8 = (*uint8)(unsafe.Pointer(&node[IsRootNodeOffset]))
+	if isRoot {
+		*IsRootNodeField = 1
 	} else {
-		return false
+		*IsRootNodeField = 0
 	}
 }
 
@@ -187,7 +277,7 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	*LeafNodeNumCells(newPage.Mem[:]) = LeafNodeRightSplitCount
 
 	if IsRootNode(oldPage.Mem[:]) {
-		// TODO: Create new root node
+		CreateNewRootNode(cursor.TablePtr, newPageNum)
 	} else {
 		// TODO: Need to implement updating parent after split
 		os.Exit(util.ExitFailure)
