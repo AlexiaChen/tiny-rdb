@@ -74,9 +74,9 @@ const (
 // Interal Node Body Format
 // The body is an array of cells where each cell contains a child pointer and a key. Every key should be the maximum key contained in the child to its left.
 const (
-	InternalNodeKeySize  = 4 // 4 bytes
-	InteralNodeChildSize = 4 // 4 bytes
-	InteralNodeCellSize  = InternalNodeKeySize + InteralNodeChildSize
+	InternalNodeKeySize   = 4 // 4 bytes
+	InternalNodeChildSize = 4 // 4 bytes
+	InternalNodeCellSize  = InternalNodeKeySize + InternalNodeChildSize
 )
 
 // Leaf Node Header Format  leaf nodes need to store how many “cells” they contain. A cell is a key/value pair. Value is actual row data
@@ -150,6 +150,50 @@ const (
 
 // Accessing Internal node, setter and getter for internal node
 
+// InternalNodeNumKeys Get or set Number of keys in internal node
+func InternalNodeNumKeys(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[InternalNodeNumKeysOffset]))
+}
+
+// InternalNodeRightChildPtr Get or set child ptr.
+// Child ptr is child page number
+func InternalNodeRightChildPtr(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[InternalNodeRightChildOffset]))
+}
+
+// InternalNodeCell Get or set Internal node cell from cellNum
+// node cell = child pointer + key
+func InternalNodeCell(node []byte, cellNum uint32) []byte {
+	var cellOffset uint32 = InternalNodeHeaderSize + InternalNodeCellSize*cellNum
+	return node[cellOffset : cellOffset+InternalNodeCellSize]
+}
+
+// InternalNodeChildPtr Get or set Internal node child ptr from cellNum
+func InternalNodeChildPtr(node []byte, cellNum uint32) *uint32 {
+	cellSlice := InternalNodeCell(node, cellNum)
+	return (*uint32)(unsafe.Pointer(&cellSlice[0]))
+}
+
+// InternalNodeKey Get or set Internal node key from cellNum
+func InternalNodeKey(node []byte, cellNum uint32) *uint32 {
+	cellSlice := InternalNodeCell(node, cellNum)
+	return (*uint32)(unsafe.Pointer(&cellSlice[InternalNodeChildSize]))
+}
+
+// InternalNodeChild Get or set Internal node child
+func InternalNodeChild(node []byte, childNum uint32) *uint32 {
+	var numKeys uint32 = *InternalNodeNumKeys(node)
+	if childNum > numKeys {
+		fmt.Printf("Tried to access child_num %v > num_keys %v\n", childNum, numKeys)
+		os.Exit(util.ExitFailure)
+		return nil
+	} else if childNum == numKeys {
+		return InternalNodeRightChildPtr(node)
+	} else {
+		return InternalNodeChildPtr(node, childNum)
+	}
+}
+
 // Accessing Leaf node, setter and getter for leaf node
 
 // InitializeLeafNode Initialize Leaf node
@@ -169,6 +213,22 @@ func SetNodeType(node []byte, nodeType NodeType) {
 func GetNodeType(node []byte) NodeType {
 	typet := (*NodeType)(unsafe.Pointer(&node[NodeTypeOffset]))
 	return *typet
+}
+
+// GetNodeMaxKeys Get max key in bunch of keys in the node
+func GetNodeMaxKeys(node []byte) uint32 {
+	switch GetNodeType(node) {
+	case TypeInternalNode:
+		// For an internal node, the maximum key is always its right key.
+		return *InternalNodeKey(node, *InternalNodeNumKeys(node)-1)
+	case TypeLeafNode:
+		// For a leaf node, it’s the key at the maximum index
+		return *LeafNodeKey(node, *LeafNodeNumCells(node)-1)
+	default:
+		fmt.Printf("Unkown node type\n")
+		os.Exit(util.ExitFailure)
+		return 0
+	}
 }
 
 // CreateNewRootNode Take the right child node as input and allocates a new page to store the left child.
@@ -214,7 +274,7 @@ func SetRootNode(node []byte, isRoot bool) {
 	}
 }
 
-// LeafNodeNumCells Get Number of cells in leaf node
+// LeafNodeNumCells Get or set Number of cells in leaf node
 func LeafNodeNumCells(node []byte) *uint32 {
 	return (*uint32)(unsafe.Pointer(&node[LeafNodeCellsNumOffset]))
 }
