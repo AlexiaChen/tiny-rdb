@@ -300,6 +300,8 @@ func TestOrderedKey(t *testing.T) {
 		backend.CursorNext(cursor)
 	}
 
+	backend.CloseDB(table)
+	os.Remove(dbFile)
 }
 
 func TestFileLength(t *testing.T) {

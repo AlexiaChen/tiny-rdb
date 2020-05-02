@@ -240,6 +240,12 @@ func DeserializeRow(src []byte, dst *Row) int {
 	return copied
 }
 
+// GetUnallocatedPageNum in a database with N pages, page numbers 0 through N-1 are allocated. Therefore we can always allocate page number N for new pages.
+// Until we start recycling free pages, new pages will always go onto the end of the database file
+func GetUnallocatedPageNum(pager *Pager) uint32 {
+	return pager.NumPages
+}
+
 // GetPage Get the page that pageNum specific
 func GetPage(pager *Pager, pageNum uint32) *Page {
 	if pageNum > TableMaxPages {
