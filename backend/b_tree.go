@@ -411,6 +411,36 @@ func FindLeafNode(table *Table, pageNum uint32, key uint32) *Cursor {
 	return cursor
 }
 
+// FindInternalNode Search the cursor in the internal node with binary search.
+func FindInternalNode(table *Table, pageNum uint32, key uint32) *Cursor {
+	var page *Page = GetPage(table.Pager, pageNum)
+	var numKeys uint32 = *InternalNodeNumKeys(page.Mem[:])
+
+	// Binary search to find index of child to search
+	var minIndex uint32 = 0
+	var maxIndex uint32 = numKeys
+	for maxIndex != minIndex {
+		var index uint32 = (minIndex + maxIndex) / 2
+		var indexKey uint32 = *InternalNodeKey(page.Mem[:], index)
+		if indexKey >= key {
+			maxIndex = index
+		} else {
+			minIndex = index + 1
+		}
+	}
+
+	var childNum uint32 = *InternalNodeChild(page.Mem[:], minIndex)
+	var childPage *Page = GetPage(table.Pager, childNum)
+	switch GetNodeType(childPage.Mem[:]) {
+	case TypeLeafNode:
+		return FindLeafNode(table, childNum, key)
+	case TypeInternalNode:
+		return FindInternalNode(table, childNum, key)
+	}
+
+	return nil
+}
+
 // indent the numbers of level for B-tree
 func indent(level uint32) {
 	for i := uint32(0); i < level; i++ {
