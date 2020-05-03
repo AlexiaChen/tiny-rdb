@@ -136,9 +136,6 @@ func RunStatement(table *backend.Table, statement *Statement) ExecuteResult {
 
 // RunInsert run insert statment
 func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
-	var page *backend.Page = backend.GetPage(table.Pager, table.RootPageNum)
-	var numCells uint32 = *backend.LeafNodeNumCells(page.Mem[:])
-
 	fileInf, err := table.Pager.FilePtr.Stat()
 	if err != nil {
 		fmt.Printf("Inserting cannot get lastest file state\n")
@@ -148,6 +145,9 @@ func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
 
 	var key uint32 = statement.RowToInsert.PrimaryID
 	var cursor *backend.Cursor = backend.Find(table, key)
+
+	var page *backend.Page = backend.GetPage(table.Pager, cursor.PageNum)
+	var numCells uint32 = *backend.LeafNodeNumCells(page.Mem[:])
 
 	if cursor.CellNum < numCells {
 		var keyFinded uint32 = *backend.LeafNodeKey(page.Mem[:], cursor.CellNum)
