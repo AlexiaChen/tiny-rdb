@@ -106,8 +106,9 @@ func Find(table *Table, key uint32) *Cursor {
 	var rootPage *Page = GetPage(table.Pager, rootPageNum)
 	if GetNodeType(rootPage.Mem[:]) == TypeLeafNode {
 		return FindLeafNode(table, rootPageNum, key)
+	} else if GetNodeType(rootPage.Mem[:]) == TypeInternalNode {
+		return FindInternalNode(table, rootPageNum, key)
 	} else {
-		// TODO: implement search internal node
 		os.Exit(util.ExitFailure)
 		return nil
 	}
@@ -151,8 +152,10 @@ func OpenDB(filename string) *Table {
 	table.Pager = pager
 
 	if pager.NumPages == 0 {
+		// New DB file. Initialize page 0 as leaf node.
 		var page *Page = GetPage(pager, 0)
 		InitializeLeafNode(page.Mem[:])
+		SetRootNode(page.Mem[:], true)
 	}
 	return table
 }

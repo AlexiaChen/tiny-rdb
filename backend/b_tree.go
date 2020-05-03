@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// Difference between B Tree and B+ Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
+// Difference between B-Tree and B+Tree： http://www.differencebetween.info/difference-between-b-tree-and-b-plus-tree
 
 // B-tree nodes with children are called “internal” nodes. Internal nodes and leaf nodes are structured differently:
 
@@ -74,9 +74,9 @@ const (
 // Interal Node Body Format
 // The body is an array of cells where each cell contains a child pointer and a key. Every key should be the maximum key contained in the child to its left.
 const (
-	InternalNodeKeySize  = 4 // 4 bytes
-	InteralNodeChildSize = 4 // 4 bytes
-	InteralNodeCellSize  = InternalNodeKeySize + InteralNodeChildSize
+	InternalNodeKeySize   = 4 // 4 bytes
+	InternalNodeChildSize = 4 // 4 bytes
+	InternalNodeCellSize  = InternalNodeKeySize + InternalNodeChildSize
 )
 
 // Leaf Node Header Format  leaf nodes need to store how many “cells” they contain. A cell is a key/value pair. Value is actual row data
@@ -150,13 +150,63 @@ const (
 
 // Accessing Internal node, setter and getter for internal node
 
+// InitializeInternalNode Initialize internal nonde
+func InitializeInternalNode(node []byte) {
+	SetNodeType(node, TypeInternalNode)
+	SetRootNode(node, true)
+	*InternalNodeNumKeys(node) = 0
+}
+
+// InternalNodeNumKeys Get or set Number of keys in internal node
+func InternalNodeNumKeys(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[InternalNodeNumKeysOffset]))
+}
+
+// internalNodeRightChildPtr Get or set child ptr.
+// Child ptr is child page number
+func internalNodeRightChildPtr(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[InternalNodeRightChildOffset]))
+}
+
+// InternalNodeCell Get or set Internal node cell from cellNum
+// node cell = child pointer + key
+func InternalNodeCell(node []byte, cellNum uint32) []byte {
+	var cellOffset uint32 = InternalNodeHeaderSize + InternalNodeCellSize*cellNum
+	return node[cellOffset : cellOffset+InternalNodeCellSize]
+}
+
+func internalNodeChildPtr(node []byte, cellNum uint32) *uint32 {
+	cellSlice := InternalNodeCell(node, cellNum)
+	return (*uint32)(unsafe.Pointer(&cellSlice[0]))
+}
+
+// InternalNodeKey Get or set Internal node key from cellNum
+func InternalNodeKey(node []byte, cellNum uint32) *uint32 {
+	cellSlice := InternalNodeCell(node, cellNum)
+	return (*uint32)(unsafe.Pointer(&cellSlice[InternalNodeChildSize]))
+}
+
+// InternalNodeChild Get or set Internal node child
+func InternalNodeChild(node []byte, childNum uint32) *uint32 {
+	var numKeys uint32 = *InternalNodeNumKeys(node)
+	if childNum > numKeys {
+		fmt.Printf("Tried to access child_num %v > num_keys %v\n", childNum, numKeys)
+		os.Exit(util.ExitFailure)
+		return nil
+	} else if childNum == numKeys {
+		return internalNodeRightChildPtr(node)
+	} else {
+		return internalNodeChildPtr(node, childNum)
+	}
+}
+
 // Accessing Leaf node, setter and getter for leaf node
 
 // InitializeLeafNode Initialize Leaf node
 func InitializeLeafNode(node []byte) {
 	SetNodeType(node, TypeLeafNode)
-	var numCells *uint32 = LeafNodeNumCells(node)
-	*numCells = 0
+	SetRootNode(node, false)
+	*LeafNodeNumCells(node) = 0
 }
 
 // SetNodeType Set the type of node
@@ -169,6 +219,22 @@ func SetNodeType(node []byte, nodeType NodeType) {
 func GetNodeType(node []byte) NodeType {
 	typet := (*NodeType)(unsafe.Pointer(&node[NodeTypeOffset]))
 	return *typet
+}
+
+// GetNodeMaxKeys Get max key in bunch of keys in the node
+func GetNodeMaxKeys(node []byte) uint32 {
+	switch GetNodeType(node) {
+	case TypeInternalNode:
+		// For an internal node, the maximum key is always its right key.
+		return *InternalNodeKey(node, *InternalNodeNumKeys(node)-1)
+	case TypeLeafNode:
+		// For a leaf node, it’s the key at the maximum index
+		return *LeafNodeKey(node, *LeafNodeNumCells(node)-1)
+	default:
+		fmt.Printf("Unkown node type\n")
+		os.Exit(util.ExitFailure)
+		return 0
+	}
 }
 
 // CreateNewRootNode Take the right child node as input and allocates a new page to store the left child.
@@ -192,7 +258,13 @@ func CreateNewRootNode(table *Table, rightNodePageNum uint32) {
 
 	// Finally we initialize the root page as a new internal node with two children.
 	// Root node is a new internal node with one key and two children
-	// TODO
+	InitializeInternalNode(rootPage.Mem[:])
+	SetRootNode(rootPage.Mem[:], true)
+	*InternalNodeNumKeys(rootPage.Mem[:]) = 1
+	*InternalNodeChild(rootPage.Mem[:], 0) = leftNodePageNum
+	var leftChildMaxKey uint32 = GetNodeMaxKeys(leftPage.Mem[:])
+	*InternalNodeKey(rootPage.Mem[:], 0) = leftChildMaxKey
+	*internalNodeRightChildPtr(rootPage.Mem[:]) = rightNodePageNum
 }
 
 // IsRootNode Check if it is root node
@@ -214,7 +286,7 @@ func SetRootNode(node []byte, isRoot bool) {
 	}
 }
 
-// LeafNodeNumCells Get Number of cells in leaf node
+// LeafNodeNumCells Get or set Number of cells in leaf node
 func LeafNodeNumCells(node []byte) *uint32 {
 	return (*uint32)(unsafe.Pointer(&node[LeafNodeCellsNumOffset]))
 }
@@ -339,6 +411,43 @@ func FindLeafNode(table *Table, pageNum uint32, key uint32) *Cursor {
 	return cursor
 }
 
+// FindInternalNode Search the cursor in the internal node with binary search.
+func FindInternalNode(table *Table, pageNum uint32, key uint32) *Cursor {
+	var page *Page = GetPage(table.Pager, pageNum)
+	var numKeys uint32 = *InternalNodeNumKeys(page.Mem[:])
+
+	// Binary search to find index of child to search
+	var minIndex uint32 = 0
+	var maxIndex uint32 = numKeys
+	for maxIndex != minIndex {
+		var index uint32 = (minIndex + maxIndex) / 2
+		var indexKey uint32 = *InternalNodeKey(page.Mem[:], index)
+		if indexKey >= key {
+			maxIndex = index
+		} else {
+			minIndex = index + 1
+		}
+	}
+
+	var childNum uint32 = *InternalNodeChild(page.Mem[:], minIndex)
+	var childPage *Page = GetPage(table.Pager, childNum)
+	switch GetNodeType(childPage.Mem[:]) {
+	case TypeLeafNode:
+		return FindLeafNode(table, childNum, key)
+	case TypeInternalNode:
+		return FindInternalNode(table, childNum, key)
+	}
+
+	return nil
+}
+
+// indent the numbers of level for B-tree
+func indent(level uint32) {
+	for i := uint32(0); i < level; i++ {
+		fmt.Printf("	")
+	}
+}
+
 // PrintLeafNode Print detailed info from leaf node binary
 func PrintLeafNode(node []byte) uint32 {
 	var numCells uint32 = *LeafNodeNumCells(node)
@@ -347,4 +456,33 @@ func PrintLeafNode(node []byte) uint32 {
 		fmt.Printf("(cell num: %v, key: %v)\n", i, *LeafNodeKey(node, i))
 	}
 	return numCells
+}
+
+// PrintTree Print B-Tree recursively
+func PrintTree(pager *Pager, pageNum uint32, indentLevel uint32) {
+	var page *Page = GetPage(pager, pageNum)
+	var numKeys, child uint32
+	switch GetNodeType(page.Mem[:]) {
+	case TypeLeafNode:
+		numKeys = *LeafNodeNumCells(page.Mem[:])
+		indent(indentLevel)
+		fmt.Printf("- Leaf num of cells: %v\n", numKeys)
+		for i := uint32(0); i < numKeys; i++ {
+			indent(indentLevel + 1)
+			fmt.Printf("- (Leaf cell num: %v, key: %v)\n", i, *LeafNodeKey(page.Mem[:], i))
+		}
+	case TypeInternalNode:
+		numKeys = *InternalNodeNumKeys(page.Mem[:])
+		indent(indentLevel)
+		fmt.Printf("- Internal num of cells: %v\n", numKeys)
+		for i := uint32(0); i < numKeys; i++ {
+			child = *InternalNodeChild(page.Mem[:], i)
+			PrintTree(pager, child, indentLevel+1)
+
+			indent(indentLevel + 1)
+			fmt.Printf("- (Internal cell num: %v, key: %v)\n", i, *InternalNodeKey(page.Mem[:], i))
+		}
+		child = *internalNodeRightChildPtr(page.Mem[:])
+		PrintTree(pager, child, indentLevel+1)
+	}
 }
