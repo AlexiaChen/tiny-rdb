@@ -151,8 +151,10 @@ func OpenDB(filename string) *Table {
 	table.Pager = pager
 
 	if pager.NumPages == 0 {
+		// New DB file. Initialize page 0 as leaf node.
 		var page *Page = GetPage(pager, 0)
 		InitializeLeafNode(page.Mem[:])
+		SetRootNode(page.Mem[:], true)
 	}
 	return table
 }
