@@ -427,3 +427,32 @@ func PrintLeafNode(node []byte) uint32 {
 	}
 	return numCells
 }
+
+// PrintTree Print B-Tree recursively
+func PrintTree(pager *Pager, pageNum uint32, indentLevel uint32) {
+	var page *Page = GetPage(pager, pageNum)
+	var numKeys, child uint32
+	switch GetNodeType(page.Mem[:]) {
+	case TypeLeafNode:
+		numKeys = *LeafNodeNumCells(page.Mem[:])
+		indent(indentLevel)
+		fmt.Printf("- Leaf num of cells: %v\n", numKeys)
+		for i := uint32(0); i < numKeys; i++ {
+			indent(indentLevel + 1)
+			fmt.Printf("- (Leaf cell num: %v, key: %v)\n", i, *LeafNodeKey(page.Mem[:], i))
+		}
+	case TypeInternalNode:
+		numKeys = *InternalNodeNumKeys(page.Mem[:])
+		indent(indentLevel)
+		fmt.Printf("- Internal num of cells: %v\n", numKeys)
+		for i := uint32(0); i < numKeys; i++ {
+			child = *InternalNodeChild(page.Mem[:], i)
+			PrintTree(pager, child, indentLevel+1)
+
+			indent(indentLevel + 1)
+			fmt.Printf("- (Internal cell num: %v, key: %v)\n", i, *InternalNodeKey(page.Mem[:], i))
+		}
+		child = *internalNodeRightChildPtr(page.Mem[:])
+		PrintTree(pager, child, indentLevel+1)
+	}
+}
