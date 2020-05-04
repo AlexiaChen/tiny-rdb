@@ -334,7 +334,6 @@ func CursorNext(cursor *Cursor) {
 	var pageNum uint32 = cursor.PageNum
 	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
 	cursor.CellNum++
-	fmt.Printf("Curosr Next cellNum: %v\n", cursor.CellNum)
 	if cursor.CellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		cursor.IsEndOfTable = true
 	}
