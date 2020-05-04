@@ -88,14 +88,10 @@ func CursorBegin(table *Table) *Cursor {
 
 // CursorEnd create a cursor point to end of the table
 func CursorEnd(table *Table) *Cursor {
-	var cursor *Cursor = new(Cursor)
-	cursor.TablePtr = table
-	cursor.PageNum = table.RootPageNum
-
-	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
-	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
-	cursor.CellNum = numCells
-	cursor.IsEndOfTable = true
+	var cursor *Cursor = CursorBegin(table)
+	for !cursor.IsEndOfTable {
+		CursorNext(cursor)
+	}
 	return cursor
 }
 
@@ -183,6 +179,8 @@ func FlushPage(pager *Pager, pageNum uint32) {
 		fmt.Printf("Write bytes size %v over promised size %v\n", writeBytes, PageSize)
 		os.Exit(util.ExitFailure)
 	}
+
+	pager.FilePtr.Sync()
 }
 
 // CloseDB Flushes the page cache to disk and close the DB file
@@ -249,6 +247,24 @@ func GetUnallocatedPageNum(pager *Pager) uint32 {
 	return pager.NumPages
 }
 
+func flushAllocatedPages(pager *Pager) {
+	for i, page := range pager.Pages {
+		if page != nil {
+			FlushPage(pager, uint32(i))
+		} else {
+			break
+		}
+	}
+	fileInf, err := pager.FilePtr.Stat()
+	if err != nil {
+		fmt.Printf("Cannot get lastest file state\n")
+		os.Exit(util.ExitFailure)
+	}
+	pager.FileLength = fileInf.Size()
+
+	fmt.Printf("Current File Length: %v", pager.FileLength)
+}
+
 // GetPage Get the page that pageNum specific
 func GetPage(pager *Pager, pageNum uint32) *Page {
 	if pageNum > TableMaxPages {
@@ -294,12 +310,12 @@ func GetPage(pager *Pager, pageNum uint32) *Page {
 					os.Exit(util.ExitFailure)
 				}
 			}
+		}
 
-			pager.Pages[pageNum] = page
+		pager.Pages[pageNum] = page
 
-			if pageNum >= pager.NumPages {
-				pager.NumPages = pageNum + 1
-			}
+		if pageNum >= pager.NumPages {
+			pager.NumPages = pageNum + 1
 		}
 	}
 
