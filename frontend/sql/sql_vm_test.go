@@ -153,7 +153,7 @@ func TestBunchOfInsert(t *testing.T) {
 	dbFile := "./BunchOfInsert.db"
 	table := backend.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
-	InsertNum := uint32(14)
+	InsertNum := uint32(10)
 	for i := uint32(0); i < InsertNum; i++ {
 
 		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")

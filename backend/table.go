@@ -88,14 +88,11 @@ func CursorBegin(table *Table) *Cursor {
 
 // CursorEnd create a cursor point to end of the table
 func CursorEnd(table *Table) *Cursor {
-	var cursor *Cursor = new(Cursor)
-	cursor.TablePtr = table
-	cursor.PageNum = table.RootPageNum
-
-	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
-	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
-	cursor.CellNum = numCells
-	cursor.IsEndOfTable = true
+	var cursor *Cursor = CursorBegin(table)
+	for !cursor.IsEndOfTable {
+		CursorNext(cursor)
+	}
+	fmt.Printf("######### end cellNum: %v\n", cursor.CellNum)
 	return cursor
 }
 
@@ -338,6 +335,7 @@ func CursorNext(cursor *Cursor) {
 	var pageNum uint32 = cursor.PageNum
 	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
 	cursor.CellNum++
+	fmt.Printf("Curosr Next cellNum: %v\n", cursor.CellNum)
 	if cursor.CellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		cursor.IsEndOfTable = true
 	}
