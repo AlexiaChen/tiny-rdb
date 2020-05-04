@@ -136,12 +136,6 @@ func RunStatement(table *backend.Table, statement *Statement) ExecuteResult {
 
 // RunInsert run insert statment
 func RunInsert(table *backend.Table, statement *Statement) ExecuteResult {
-	fileInf, err := table.Pager.FilePtr.Stat()
-	if err != nil {
-		fmt.Printf("Inserting cannot get lastest file state\n")
-		os.Exit(util.ExitFailure)
-	}
-	table.Pager.FileLength = fileInf.Size()
 
 	var key uint32 = statement.RowToInsert.PrimaryID
 	var cursor *backend.Cursor = backend.Find(table, key)

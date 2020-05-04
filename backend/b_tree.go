@@ -324,7 +324,7 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	// All existing keys and new key should be divided
 	// evenly between old (left) and new (right) nodes to rebalance
 	// Starting from the right, move each key to correct position.
-	for i := uint32(LeafNodeMaxCells); i >= 0; i-- {
+	for i := int32(LeafNodeMaxCells); i >= 0; i-- {
 		var destinationPage *Page = nil
 		if i >= LeafNodeLeftSplitCount {
 			destinationPage = newPage
@@ -332,15 +332,15 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 			destinationPage = oldPage
 		}
 
-		var indexWithinNode uint32 = i % LeafNodeLeftSplitCount
+		var indexWithinNode uint32 = uint32(i) % LeafNodeLeftSplitCount
 		var destinationCell []byte = LeafNodeCell(destinationPage.Mem[:], indexWithinNode)
-		if i == cursor.CellNum {
+		if uint32(i) == cursor.CellNum {
 			SerializeRow(value, LeafNodeValue(destinationPage.Mem[:], indexWithinNode))
 			*LeafNodeKey(destinationPage.Mem[:], indexWithinNode) = key
-		} else if i > cursor.CellNum {
-			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], i-1))
+		} else if uint32(i) > cursor.CellNum {
+			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], uint32(i)-1))
 		} else {
-			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], i))
+			copy(destinationCell, LeafNodeCell(oldPage.Mem[:], uint32(i)))
 		}
 	}
 
