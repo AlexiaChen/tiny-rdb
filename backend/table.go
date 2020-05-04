@@ -92,7 +92,6 @@ func CursorEnd(table *Table) *Cursor {
 	for !cursor.IsEndOfTable {
 		CursorNext(cursor)
 	}
-	fmt.Printf("######### end cellNum: %v\n", cursor.CellNum)
 	return cursor
 }
 
