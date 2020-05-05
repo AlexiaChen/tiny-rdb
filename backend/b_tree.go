@@ -74,9 +74,11 @@ const (
 // Interal Node Body Format
 // The body is an array of cells where each cell contains a child pointer and a key. Every key should be the maximum key contained in the child to its left.
 const (
-	InternalNodeKeySize   = 4 // 4 bytes
-	InternalNodeChildSize = 4 // 4 bytes
-	InternalNodeCellSize  = InternalNodeKeySize + InternalNodeChildSize
+	InternalNodeKeySize        = 4 // 4 bytes
+	InternalNodeChildSize      = 4 // 4 bytes
+	InternalNodeCellSize       = InternalNodeKeySize + InternalNodeChildSize
+	InternalNodeCellsSpaceSize = NodeSize - InternalNodeHeaderSize
+	InternalNodeMaxCells       = InternalNodeCellsSpaceSize / InternalNodeCellSize
 )
 
 // Leaf Node Header Format  leaf nodes need to store how many “cells” they contain. A cell is a key/value pair. Value is actual row data
@@ -398,6 +400,39 @@ func updateInternalNodeKey(node []byte, oldKey uint32, newKey uint32) {
 
 // InsertInternalNode insert a new internal node
 func InsertInternalNode(table *Table, parentPageNum uint32, childPageNum uint32) {
+	// Add a new child/key pair to parent that corresponds to child
+	var parentPage *Page = GetPage(table.Pager, parentPageNum)
+	var childPage *Page = GetPage(table.Pager, childPageNum)
+	var childMaxKey uint32 = GetNodeMaxKeys(childPage.Mem[:])
+
+	var parentChildKeyIndex uint32 = findInternalNodeChild(parentPage.Mem[:], childMaxKey)
+	var oldParentNodeNumKeys uint32 = *InternalNodeNumKeys(parentPage.Mem[:])
+	*InternalNodeNumKeys(parentPage.Mem[:]) = oldParentNodeNumKeys + 1
+	if oldParentNodeNumKeys >= InternalNodeMaxCells {
+		// TODO: Split internal node
+		os.Exit(util.ExitFailure)
+	}
+
+	var rightChildPageNum uint32 = *internalNodeRightChildPtr(parentPage.Mem[:])
+	var rightChildPage *Page = GetPage(table.Pager, rightChildPageNum)
+	if childMaxKey > GetNodeMaxKeys(rightChildPage.Mem[:]) {
+		// Old right child update to cells arrany almost right cell
+		*internalNodeChildPtr(parentPage.Mem[:], oldParentNodeNumKeys) = rightChildPageNum
+		*InternalNodeKey(parentPage.Mem[:], oldParentNodeNumKeys) = GetNodeMaxKeys(rightChildPage.Mem[:])
+
+		// Replace old right child to new one
+		*internalNodeRightChildPtr(parentPage.Mem[:]) = childPageNum
+	} else {
+		// Move one cell back for every cells to Make new cell space
+		for i := uint32(oldParentNodeNumKeys); i > parentChildKeyIndex; i-- {
+			destCellSlice := InternalNodeCell(parentPage.Mem[:], i)
+			srcCellSlice := InternalNodeCell(parentPage.Mem[:], i-1)
+			copy(destCellSlice, srcCellSlice)
+		}
+
+		*internalNodeChildPtr(parentPage.Mem[:], parentChildKeyIndex) = childPageNum
+		*InternalNodeKey(parentPage.Mem[:], parentChildKeyIndex) = childMaxKey
+	}
 
 }
 
