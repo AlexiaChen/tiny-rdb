@@ -65,6 +65,7 @@ type Cursor struct {
 	TablePtr     *Table
 	PageNum      uint32
 	CellNum      uint32
+	PassedCells  uint32
 	IsEndOfTable bool
 }
 
@@ -73,6 +74,7 @@ func CursorBegin(table *Table) *Cursor {
 	var cursor *Cursor = Find(table, 0)
 	var page *Page = GetPage(table.Pager, cursor.PageNum)
 	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
+	cursor.PassedCells = 0
 	if numCells == 0 {
 		cursor.IsEndOfTable = true
 	} else {
@@ -328,6 +330,7 @@ func CursorValue(cursor *Cursor) []byte {
 func CursorNext(cursor *Cursor) {
 	var pageNum uint32 = cursor.PageNum
 	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
+	cursor.PassedCells++
 	cursor.CellNum++
 	if cursor.CellNum >= *LeafNodeNumCells(page.Mem[:]) {
 		var nextLeafPageNum uint32 = *LeafNodeNextLeaf(page.Mem[:])
