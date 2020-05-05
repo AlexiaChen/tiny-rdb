@@ -70,14 +70,9 @@ type Cursor struct {
 
 // CursorBegin create a cursor point to begin of the table
 func CursorBegin(table *Table) *Cursor {
-	var cursor *Cursor = new(Cursor)
-	cursor.TablePtr = table
-	cursor.PageNum = table.RootPageNum
-	cursor.CellNum = 0
-
-	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
-	var numCells uint32 = *LeafNodeNumCells(rootPage.Mem[:])
-
+	var cursor *Cursor = Find(table, 0)
+	var page *Page = GetPage(table.Pager, cursor.PageNum)
+	var numCells uint32 = *LeafNodeNumCells(page.Mem[:])
 	if numCells == 0 {
 		cursor.IsEndOfTable = true
 	} else {
@@ -335,7 +330,14 @@ func CursorNext(cursor *Cursor) {
 	var page *Page = GetPage(cursor.TablePtr.Pager, pageNum)
 	cursor.CellNum++
 	if cursor.CellNum >= *LeafNodeNumCells(page.Mem[:]) {
-		cursor.IsEndOfTable = true
+		var nextLeafPageNum uint32 = *LeafNodeNextLeaf(page.Mem[:])
+		if nextLeafPageNum == 0 {
+			// Rightmost leaf node's signle-linked list
+			cursor.IsEndOfTable = true
+		} else {
+			cursor.PageNum = nextLeafPageNum
+			cursor.CellNum = 0
+		}
 	}
 }
 
