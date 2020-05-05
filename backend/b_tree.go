@@ -180,6 +180,7 @@ func InternalNodeCell(node []byte, cellNum uint32) []byte {
 	return node[cellOffset : cellOffset+InternalNodeCellSize]
 }
 
+// internalNodeChildPtr Get or set Internal node child(child page number) from cellNum
 func internalNodeChildPtr(node []byte, cellNum uint32) *uint32 {
 	cellSlice := InternalNodeCell(node, cellNum)
 	return (*uint32)(unsafe.Pointer(&cellSlice[0]))
@@ -227,6 +228,11 @@ func GetNodeType(node []byte) NodeType {
 	return *typet
 }
 
+// ParentNode Get or set the parent node page num of specific node
+func ParentNode(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[ParentNodePointerOffset]))
+}
+
 // GetNodeMaxKeys Get max key in bunch of keys in the node
 func GetNodeMaxKeys(node []byte) uint32 {
 	switch GetNodeType(node) {
@@ -251,7 +257,7 @@ func CreateNewRootNode(table *Table, rightNodePageNum uint32) {
 	// Re-initialize root page to contain the new root node.
 	// New root node points to two children.
 	var rootPage *Page = GetPage(table.Pager, table.RootPageNum)
-	//var rightPage *Page = GetPage(table.Pager, rightNodePageNum)
+	var rightPage *Page = GetPage(table.Pager, rightNodePageNum)
 	var leftNodePageNum uint32 = GetUnallocatedPageNum(table.Pager)
 	var leftPage *Page = GetPage(table.Pager, leftNodePageNum)
 
@@ -271,6 +277,10 @@ func CreateNewRootNode(table *Table, rightNodePageNum uint32) {
 	var leftChildMaxKey uint32 = GetNodeMaxKeys(leftPage.Mem[:])
 	*InternalNodeKey(rootPage.Mem[:], 0) = leftChildMaxKey
 	*internalNodeRightChildPtr(rootPage.Mem[:]) = rightNodePageNum
+
+	// Update Parent node to root node page
+	*ParentNode(leftPage.Mem[:]) = table.RootPageNum
+	*ParentNode(rightPage.Mem[:]) = table.RootPageNum
 }
 
 // IsRootNode Check if it is root node
@@ -328,11 +338,14 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	// Insert the new value in one of the two nodes.
 	// Update parent or create a new parent.
 	var oldPage *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
+	var oldMaxKey uint32 = GetNodeMaxKeys(oldPage.Mem[:])
 	var newPageNum uint32 = GetUnallocatedPageNum(cursor.TablePtr.Pager)
 	var newPage *Page = GetPage(cursor.TablePtr.Pager, newPageNum)
 
-	// insertion of leaf node's single-linked list
 	InitializeLeafNode(newPage.Mem[:])
+	*ParentNode(newPage.Mem[:]) = *ParentNode(oldPage.Mem[:])
+
+	// insertion of leaf node's single-linked list
 	*LeafNodeNextLeaf(newPage.Mem[:]) = *LeafNodeNextLeaf(oldPage.Mem[:])
 	*LeafNodeNextLeaf(oldPage.Mem[:]) = newPageNum
 
@@ -366,9 +379,25 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	if IsRootNode(oldPage.Mem[:]) {
 		CreateNewRootNode(cursor.TablePtr, newPageNum)
 	} else {
-		// TODO: Need to implement updating parent after split
-		os.Exit(util.ExitFailure)
+		var parentPageNum uint32 = *ParentNode(oldPage.Mem[:])
+		var newMaxKey uint32 = GetNodeMaxKeys(oldPage.Mem[:])
+		var parentPage *Page = GetPage(cursor.TablePtr.Pager, parentPageNum)
+
+		// Update Parent Internal node
+		updateInternalNodeKey(parentPage.Mem[:], oldMaxKey, newMaxKey)
+		InsertInternalNode(cursor.TablePtr, parentPageNum, newPageNum)
 	}
+
+}
+
+// updateInternalNodeKey update key from oldKey to newKey value
+func updateInternalNodeKey(node []byte, oldKey uint32, newKey uint32) {
+	var oldChildIndex uint32 = findInternalNodeChild(node, oldKey)
+	*InternalNodeKey(node, oldChildIndex) = newKey
+}
+
+// InsertInternalNode insert a new internal node
+func InsertInternalNode(table *Table, parentPageNum uint32, childPageNum uint32) {
 
 }
 
@@ -426,26 +455,32 @@ func FindLeafNode(table *Table, pageNum uint32, key uint32) *Cursor {
 	return cursor
 }
 
-// FindInternalNode Search the cursor in the internal node with binary search.
-func FindInternalNode(table *Table, pageNum uint32, key uint32) *Cursor {
-	var page *Page = GetPage(table.Pager, pageNum)
-	var numKeys uint32 = *InternalNodeNumKeys(page.Mem[:])
+// findInternalNodeChild Return the index of the child which should contain the given key.
+func findInternalNodeChild(node []byte, key uint32) uint32 {
+	var numKeys uint32 = *InternalNodeNumKeys(node)
 
 	// Binary search to find index of child to search
 	var minIndex uint32 = 0
 	var maxIndex uint32 = numKeys
 	for maxIndex != minIndex {
 		var index uint32 = (minIndex + maxIndex) / 2
-		var indexKey uint32 = *InternalNodeKey(page.Mem[:], index)
+		var indexKey uint32 = *InternalNodeKey(node, index)
 		if indexKey >= key {
 			maxIndex = index
 		} else {
 			minIndex = index + 1
 		}
 	}
+	return minIndex
+}
 
-	var childNum uint32 = *InternalNodeChild(page.Mem[:], minIndex)
+// FindInternalNode Search the cursor in the internal node with binary search.
+func FindInternalNode(table *Table, pageNum uint32, key uint32) *Cursor {
+	var page *Page = GetPage(table.Pager, pageNum)
+	var childIndex uint32 = findInternalNodeChild(page.Mem[:], key)
+	var childNum uint32 = *InternalNodeChild(page.Mem[:], childIndex)
 	var childPage *Page = GetPage(table.Pager, childNum)
+
 	switch GetNodeType(childPage.Mem[:]) {
 	case TypeLeafNode:
 		return FindLeafNode(table, childNum, key)
