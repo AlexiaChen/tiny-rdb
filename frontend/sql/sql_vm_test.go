@@ -153,7 +153,7 @@ func TestBunchOfInsert(t *testing.T) {
 	dbFile := "./BunchOfInsert.db"
 	table := backend.OpenDB(dbFile)
 	inputBuffer := cli.NewInputBuffer()
-	InsertNum := uint32(10)
+	InsertNum := uint32(100)
 	for i := uint32(0); i < InsertNum; i++ {
 
 		inputBuffer.Buffer = fmt.Sprintf("insert %d %s %s", i, util.RandString(8), util.RandString(8)+"@google.com")
@@ -173,8 +173,8 @@ func TestBunchOfInsert(t *testing.T) {
 	}
 
 	var endCursor *backend.Cursor = backend.CursorEnd(table)
-	if endCursor.CellNum != InsertNum {
-		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.CellNum)
+	if endCursor.PassedCells != InsertNum {
+		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.PassedCells)
 	}
 
 	inputBuffer.Buffer = "select"
@@ -196,8 +196,8 @@ func TestBunchOfInsert(t *testing.T) {
 	tableNew := backend.OpenDB(dbFile)
 
 	endCursor = backend.CursorEnd(tableNew)
-	if endCursor.CellNum != InsertNum {
-		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.CellNum)
+	if endCursor.PassedCells != InsertNum {
+		t.Errorf("Cell Num must be %v, but it is %v", InsertNum, endCursor.PassedCells)
 	}
 
 	backend.CloseDB(tableNew)
