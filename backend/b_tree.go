@@ -80,10 +80,15 @@ const (
 )
 
 // Leaf Node Header Format  leaf nodes need to store how many “cells” they contain. A cell is a key/value pair. Value is actual row data
+// To scan the entire table, we need to jump to the second leaf node after we reach the end of the first.
+// To do that, we’re going to save a new field in the leaf node header called “next_leaf”, which will hold the page number of the leaf’s sibling node on the right.
+// The rightmost leaf node will have a next_leaf value of 0 to denote no sibling (page 0 is reserved for the root node of the table anyway).
 const (
 	LeafNodeCellsNumSize   = 4 // 4 bytes
 	LeafNodeCellsNumOffset = NodeHeaderSize
-	LeafNodeHeaderSize     = NodeHeaderSize + LeafNodeCellsNumSize
+	LeafNodeNextLeafSize   = 4 // 4 bytes
+	LeafNodeNextLeafOffset = LeafNodeCellsNumOffset + LeafNodeCellsNumSize
+	LeafNodeHeaderSize     = NodeHeaderSize + LeafNodeCellsNumSize + LeafNodeNextLeafSize
 )
 
 // Leaf Node Body Format. The body of a leaf node is an array of cells. Each cell is a key followed by a value (a serialized row).
@@ -99,19 +104,19 @@ const (
 
 // Leaf node layout schema
 
-// #__byte 0__#__byte 1__#_________________byte 2-5_________________#_________________byte 6-9_________________#
-// byte 0: NodeType(1 byte), byte 1: IsRootNode(1 byte), byte 2-5:ParentNodePointer(4 bytes), byte 6-9: LeafNodeCellsNum(4 bytes)
-// #_________________byte 10-13_________________#___________________________________________byte 14-305_____________________________________________________________#
-// byte 10-13: Key0(4 bytes), byte 14-306: Value0(292 BYTES)
+// #__byte 0__#__byte 1__#_________________byte 2-5_________________#_________________byte 6-9_________________#_________________byte 10-13_________________#
+// byte 0: NodeType(1 byte), byte 1: IsRootNode(1 byte), byte 2-5:ParentNodePointer(4 bytes), byte 6-9: LeafNodeCellsNum(4 bytes), byte 10-13: LeafNodeNextLeaf(4 bytes)
+// #_________________byte 14-17_________________#___________________________________________byte 18-309_____________________________________________________________#
+// byte 14-17: Key0(4 bytes), byte 18-309: Value0(292 bytes)
 // ............
 // ............
 // Leaf node cell format layout repeat until LeafNodeCellsNum like above
 // ............
 // ............
-// #_________________byte 3562-3565_________________#___________________________________________byte 3566-3857_____________________________________________________________#
-// byte 3562-3565: Key12(4 bytes), byte 3566-3857: Value12(292)
-// #_________________________________________________byte 3858-4095______________________________________________________#
-// byte 3858-4095: specific-byte(0x00) filled space (leave it empty to avoid splitting cells between nodes)
+// #_________________byte 3566-3569_________________#___________________________________________byte 3570-3861_____________________________________________________________#
+// byte 3566-3569: Key12(4 bytes), byte 3570-3861: Value12(292 bytes)
+// #_________________________________________________byte 3862-4095______________________________________________________#
+// byte 3862-4095: specific-byte(0x00) filled space (leave it empty to avoid splitting cells between nodes)
 
 // #########################################################################################################################################################################
 
@@ -207,6 +212,7 @@ func InitializeLeafNode(node []byte) {
 	SetNodeType(node, TypeLeafNode)
 	SetRootNode(node, false)
 	*LeafNodeNumCells(node) = 0
+	*LeafNodeNextLeaf(node) = 0 // 0 represents no sibling, not root page number
 }
 
 // SetNodeType Set the type of node
@@ -291,6 +297,11 @@ func LeafNodeNumCells(node []byte) *uint32 {
 	return (*uint32)(unsafe.Pointer(&node[LeafNodeCellsNumOffset]))
 }
 
+// LeafNodeNextLeaf Get or set the next leaf page num for the specific node
+func LeafNodeNextLeaf(node []byte) *uint32 {
+	return (*uint32)(unsafe.Pointer(&node[LeafNodeNextLeafOffset]))
+}
+
 // LeafNodeCell Get specific cell bytes array in Leaf node
 func LeafNodeCell(node []byte, cellNum uint32) []byte {
 	var offsetCell uint32 = LeafNodeHeaderSize + LeafNodeCellSize*cellNum
@@ -319,7 +330,11 @@ func SplitAndInsertLeafNode(cursor *Cursor, key uint32, value *Row) {
 	var oldPage *Page = GetPage(cursor.TablePtr.Pager, cursor.PageNum)
 	var newPageNum uint32 = GetUnallocatedPageNum(cursor.TablePtr.Pager)
 	var newPage *Page = GetPage(cursor.TablePtr.Pager, newPageNum)
+
+	// insertion of leaf node's single-linked list
 	InitializeLeafNode(newPage.Mem[:])
+	*LeafNodeNextLeaf(newPage.Mem[:]) = *LeafNodeNextLeaf(oldPage.Mem[:])
+	*LeafNodeNextLeaf(oldPage.Mem[:]) = newPageNum
 
 	// All existing keys and new key should be divided
 	// evenly between old (left) and new (right) nodes to rebalance
